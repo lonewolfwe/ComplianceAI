@@ -1,9 +1,9 @@
 """
-Google Gemini AI client for ComplianceAI Lite.
+Google Gemini AI summarizer for ComplianceAI Lite.
 
 Responsible exclusively for:
   1. Sending circular text to the Gemini API.
-  2. Validating the JSON response against the CircularSummary schema.
+  2. Validating the JSON response against the schema.
   3. Retrying once on JSON parse failure.
   4. Returning a graceful fallback CircularSummary on total failure.
 
@@ -11,9 +11,10 @@ Does not scrape websites, download PDFs, or orchestrate the pipeline.
 """
 
 import json
-import logging
+from typing import Literal
 
 import google.generativeai as genai
+from pydantic import BaseModel, ValidationError
 
 from config import Settings
 from src.schemas.circular import CircularMeta, CircularSummary
@@ -50,7 +51,17 @@ Respond ONLY with the JSON object. No markdown, no explanation, no preamble.
 """.strip()
 
 
-class GeminiClient:
+class GeminiResponseSchema(BaseModel):
+    """Temporary schema to strictly validate Gemini's JSON output."""
+
+    summary: str
+    affected: str
+    severity: Literal["Low", "Medium", "High", "Critical"]
+    action_items: list[str]
+    deadline: str | None
+
+
+class GeminiSummarizer:
     """
     Wraps the Google Gemini API to generate structured compliance summaries.
 
@@ -65,12 +76,15 @@ class GeminiClient:
     """
 
     def __init__(self, settings: Settings) -> None:
+        # Initialize Google SDK
         genai.configure(api_key=settings.google_api_key)
         self._model = genai.GenerativeModel(
             model_name=settings.gemini_model,
             system_instruction=_SYSTEM_INSTRUCTION,
+            generation_config=genai.types.GenerationConfig(
+                response_mime_type="application/json",
+            ),
         )
-        self._model_name: str = settings.gemini_model
 
     def summarize(self, meta: CircularMeta, text: str) -> CircularSummary:
         """
@@ -78,7 +92,7 @@ class GeminiClient:
 
         Attempts to call Gemini and parse the response. On JSON parse
         failure, retries once. Returns a graceful error summary if both
-        attempts fail.
+        attempts fail or if the input text is empty.
 
         Args:
             meta: The circular's scraped metadata (title, date, pdf_url).
@@ -88,59 +102,90 @@ class GeminiClient:
             A CircularSummary populated with AI-generated fields, or
             a CircularSummary with summary_error=True on failure.
         """
-        raise NotImplementedError(
-            "GeminiClient.summarize() will be implemented in Milestone 4."
+        if not text.strip():
+            return self._build_error_summary(
+                meta, "No readable text extracted from PDF."
+            )
+
+        prompt = _SUMMARIZE_PROMPT.format(title=meta.title, text=text)
+
+        for attempt in range(1, 3):  # 1 initial attempt + 1 retry = 2 attempts total
+            try:
+                logger.debug(
+                    "Calling Gemini API for circular %r (attempt %d/2).",
+                    meta.title,
+                    attempt,
+                )
+                raw_response = self._call_gemini(prompt)
+                return self._parse_response(meta, raw_response)
+
+            except json.JSONDecodeError as exc:
+                logger.warning(
+                    "Failed to parse Gemini JSON on attempt %d: %s", attempt, exc
+                )
+            except ValidationError as exc:
+                logger.warning(
+                    "Gemini output failed schema validation on attempt %d: %s",
+                    attempt,
+                    exc,
+                )
+            except Exception as exc:
+                logger.error(
+                    "Unexpected error calling Gemini API on attempt %d: %s",
+                    attempt,
+                    exc,
+                )
+                # Fail immediately on generic exceptions (e.g., auth, networking)
+                # to avoid pointless retries when the API is down.
+                return self._build_error_summary(
+                    meta, f"API communication failed: {exc}"
+                )
+
+        return self._build_error_summary(
+            meta, "Gemini failed to return valid JSON after retries."
         )
 
     def _call_gemini(self, prompt: str) -> str:
         """
         Send a prompt to the Gemini API and return the raw text response.
-
-        Args:
-            prompt: The fully-rendered prompt string to send.
-
-        Returns:
-            The raw text content of the Gemini response.
-
-        Raises:
-            Exception: Re-raises any exception from the Gemini SDK after logging.
         """
-        raise NotImplementedError(
-            "GeminiClient._call_gemini() will be implemented in Milestone 4."
-        )
+        response = self._model.generate_content(prompt)
+        if not response.text:
+            raise ValueError("Gemini returned an empty response.")
+        return response.text
 
     def _parse_response(self, meta: CircularMeta, raw_response: str) -> CircularSummary:
         """
         Parse and validate a raw Gemini JSON response into a CircularSummary.
-
-        Args:
-            meta: The source circular metadata to embed in the summary.
-            raw_response: The raw text returned by the Gemini API.
-
-        Returns:
-            A fully-populated CircularSummary Pydantic model.
-
-        Raises:
-            json.JSONDecodeError: If the response is not valid JSON.
-            pydantic.ValidationError: If the JSON fields do not match the schema.
         """
-        raise NotImplementedError(
-            "GeminiClient._parse_response() will be implemented in Milestone 4."
+        # Defensive cleanup: strip potential markdown fences if the model
+        # ignores the response_mime_type instruction
+        cleaned = raw_response.strip()
+        if cleaned.startswith("```json"):
+            cleaned = cleaned[7:]
+        elif cleaned.startswith("```"):
+            cleaned = cleaned[3:]
+        if cleaned.endswith("```"):
+            cleaned = cleaned[:-3]
+        cleaned = cleaned.strip()
+
+        data = json.loads(cleaned)
+        validated = GeminiResponseSchema(**data)
+
+        return CircularSummary(
+            title=meta.title,
+            date=meta.date,
+            pdf_url=meta.pdf_url,
+            summary=validated.summary,
+            affected=validated.affected,
+            severity=validated.severity,
+            action_items=validated.action_items,
+            deadline=validated.deadline,
         )
 
     def _build_error_summary(self, meta: CircularMeta, reason: str) -> CircularSummary:
         """
         Construct a graceful fallback CircularSummary when AI summarization fails.
-
-        The returned summary has summary_error=True so the frontend can
-        render an informative partial card rather than crashing.
-
-        Args:
-            meta: The source circular metadata.
-            reason: A human-readable description of why summarization failed.
-
-        Returns:
-            A CircularSummary with summary_error=True and the failure reason.
         """
         logger.warning(
             "Returning error summary for circular %r. Reason: %s",

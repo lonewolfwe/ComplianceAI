@@ -10,7 +10,7 @@ does not know about HTTP, templates, or UI concerns.
 """
 
 from config import Settings
-from src.ai.gemini_client import GeminiClient
+from src.ai.summarizer import GeminiSummarizer
 from src.parsers.pdf_downloader import PDFDownloader
 from src.parsers.pdf_parser import PDFParser
 from src.schemas.circular import CircularSummary
@@ -29,7 +29,7 @@ class CircularService:
       1. RBIScraper fetches the list of latest circular metadata.
       2. PDFDownloader downloads each circular's PDF to a temp file.
       3. PDFParser extracts text from the temp file.
-      4. GeminiClient generates a structured AI summary.
+      4. GeminiSummarizer generates a structured AI summary.
       5. Results are stored in the TTL cache.
 
     Processing is sequential and per-circular errors are isolated: a
@@ -43,7 +43,7 @@ class CircularService:
         scraper:      An RBIScraper instance.
         downloader:   A PDFDownloader instance.
         pdf_parser:   A PDFParser instance.
-        gemini_client: A GeminiClient instance.
+        summarizer:   A GeminiSummarizer instance.
         cache:        A TTLCache[list[CircularSummary]] instance.
     """
 
@@ -53,14 +53,14 @@ class CircularService:
         scraper: RBIScraper,
         downloader: PDFDownloader,
         pdf_parser: PDFParser,
-        gemini_client: GeminiClient,
+        summarizer: GeminiSummarizer,
         cache: TTLCache[list[CircularSummary]],
     ) -> None:
         self._settings: Settings = settings
         self._scraper: RBIScraper = scraper
         self._downloader: PDFDownloader = downloader
         self._pdf_parser: PDFParser = pdf_parser
-        self._gemini_client: GeminiClient = gemini_client
+        self._summarizer: GeminiSummarizer = summarizer
         self._cache: TTLCache[list[CircularSummary]] = cache
 
     def get_circulars(self) -> list[CircularSummary]:
