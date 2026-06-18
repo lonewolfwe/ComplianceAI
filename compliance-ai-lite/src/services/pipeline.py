@@ -109,7 +109,7 @@ class CompliancePipeline:
         logger.info("Starting RBI circular pipeline.")
         try:
             # 1. Fetch metadata list
-            metas = self._scraper.fetch_latest_circulars()
+            metas = self._scraper.fetch_latest()
         except Exception as exc:
             logger.error("Pipeline failed to fetch circular metadata: %s", exc)
             return []

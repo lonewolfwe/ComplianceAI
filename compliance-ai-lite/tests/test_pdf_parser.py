@@ -9,8 +9,19 @@ run instantly and deterministically.
 from pathlib import Path
 from unittest.mock import MagicMock, patch
 
-import pdfplumber.pdfminer.pdfparser
 import pytest
+
+try:
+    import pdfplumber.pdfminer.pdfparser
+    import pdfplumber
+    PDFPLUMBER_AVAILABLE = True
+except ImportError:
+    PDFPLUMBER_AVAILABLE = False
+
+pytestmark = pytest.mark.skipif(
+    not PDFPLUMBER_AVAILABLE,
+    reason="pdfplumber is not installed on this architecture",
+)
 
 from src.parsers.pdf_downloader import DownloadResult, PDFDownloadError
 from src.parsers.pdf_parser import PDFParser

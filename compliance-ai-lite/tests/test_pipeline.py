@@ -95,37 +95,37 @@ class TestCompliancePipeline:
 
         assert result == cached_list
         mock_cache.get.assert_called_once_with("latest_circulars")
-        pipeline._scraper.fetch_latest_circulars.assert_not_called()
+        pipeline._scraper.fetch_latest.assert_not_called()
 
     def test_get_circulars_runs_pipeline_on_cache_miss(
         self, pipeline: CompliancePipeline, mock_cache: MagicMock
     ) -> None:
         """Must invoke the scraper and run the pipeline if cache is empty."""
         mock_cache.get.return_value = None
-        pipeline._scraper.fetch_latest_circulars.return_value = []
+        pipeline._scraper.fetch_latest.return_value = []
 
         result = pipeline.get_circulars()
 
         assert result == []
-        pipeline._scraper.fetch_latest_circulars.assert_called_once()
+        pipeline._scraper.fetch_latest.assert_called_once()
 
     def test_refresh_invalidates_cache_and_runs_pipeline(
         self, pipeline: CompliancePipeline, mock_cache: MagicMock
     ) -> None:
         """Must invalidate cache and re-run pipeline regardless of cache state."""
-        pipeline._scraper.fetch_latest_circulars.return_value = []
+        pipeline._scraper.fetch_latest.return_value = []
 
         result = pipeline.refresh()
 
         assert result == []
         mock_cache.invalidate.assert_called_once_with("latest_circulars")
-        pipeline._scraper.fetch_latest_circulars.assert_called_once()
+        pipeline._scraper.fetch_latest.assert_called_once()
 
     def test_run_pipeline_returns_empty_list_on_scraper_failure(
         self, pipeline: CompliancePipeline
     ) -> None:
         """Must log and return an empty list if the scraper raises an exception."""
-        pipeline._scraper.fetch_latest_circulars.side_effect = Exception("Scrape failed")
+        pipeline._scraper.fetch_latest.side_effect = Exception("Scrape failed")
 
         result = pipeline._run_pipeline()
 
@@ -135,7 +135,7 @@ class TestCompliancePipeline:
         self, pipeline: CompliancePipeline
     ) -> None:
         """Must log and return an empty list if scraper finds no circulars."""
-        pipeline._scraper.fetch_latest_circulars.return_value = []
+        pipeline._scraper.fetch_latest.return_value = []
 
         result = pipeline._run_pipeline()
 
@@ -147,7 +147,7 @@ class TestCompliancePipeline:
         """Must iterate over metas, calling download/extract/summarize for each."""
         meta1 = _make_meta("Circ 1")
         meta2 = _make_meta("Circ 2")
-        pipeline._scraper.fetch_latest_circulars.return_value = [meta1, meta2]
+        pipeline._scraper.fetch_latest.return_value = [meta1, meta2]
 
         pipeline._pdf_parser.download_and_extract.side_effect = ["Text 1", "Text 2"]
         summary1 = _make_summary("Circ 1")
@@ -174,7 +174,7 @@ class TestCompliancePipeline:
         """
         meta1 = _make_meta("Circ 1")
         meta2 = _make_meta("Circ 2")
-        pipeline._scraper.fetch_latest_circulars.return_value = [meta1, meta2]
+        pipeline._scraper.fetch_latest.return_value = [meta1, meta2]
 
         # First circular crashes unhandled during download_and_extract
         pipeline._pdf_parser.download_and_extract.side_effect = [
