@@ -73,6 +73,15 @@ class Settings(BaseSettings):
             raise ValueError(f"log_level must be one of {allowed}. Got: {value!r}")
         return upper
 
+    @field_validator("google_api_key", mode="before")
+    @classmethod
+    def clean_google_api_key(cls, value: str) -> str:
+        """Clean the Google API key by stripping quotes and whitespace."""
+        if not isinstance(value, str):
+            return value
+        cleaned = value.strip().strip("'").strip('"')
+        return cleaned
+
     model_config = {
         "env_file": ".env",
         "env_file_encoding": "utf-8",

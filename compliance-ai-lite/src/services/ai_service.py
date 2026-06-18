@@ -13,6 +13,11 @@ try:
 except ImportError:
     GENAI_AVAILABLE = False
 
+try:
+    from google.api_core import exceptions as google_exceptions  # type: ignore[import-not-found]
+except ImportError:
+    google_exceptions = None
+
 from pydantic import ValidationError
 
 from config import Settings
@@ -46,6 +51,51 @@ class AIService:
             self._model = None
             logger.error("google-generativeai is not installed.")
 
+    def _parse_gemini_error(self, exc: Exception) -> tuple[int, str]:
+        """Maps an exception to an HTTP status code and a developer recommendation."""
+        code = 500
+        msg = str(exc)
+        
+        if google_exceptions and isinstance(exc, google_exceptions.GoogleAPICallError):
+            if exc.code is not None:
+                code = exc.code
+            msg = exc.message or str(exc)
+        else:
+            err_str = str(exc).lower()
+            if "401" in err_str or "unauthenticated" in err_str or "api key" in err_str:
+                code = 401
+            elif "403" in err_str or "permission" in err_str:
+                code = 403
+            elif "429" in err_str or "quota" in err_str or "resource" in err_str or "exhausted" in err_str:
+                code = 429
+            elif "404" in err_str or "not found" in err_str or "model" in err_str:
+                code = 404
+            elif "408" in err_str or "timeout" in err_str or "deadline" in err_str:
+                code = 408
+            elif "503" in err_str or "unavailable" in err_str:
+                code = 503
+            elif "500" in err_str or "internal" in err_str:
+                code = 500
+
+        if code == 401:
+            rec = "Invalid API key. Please check your GOOGLE_API_KEY environment variable."
+        elif code == 403:
+            rec = "Permission denied. Ensure the API key has correct permissions for the Gemini API."
+        elif code == 404:
+            rec = "Wrong model. The configured model was not found or is unavailable."
+        elif code == 408:
+            rec = "Request timeout. The connection to Gemini timed out. Please try again."
+        elif code == 429:
+            rec = "Quota exceeded. You have hit the Gemini API rate limit."
+        elif code == 500:
+            rec = "Gemini internal error. Google's servers encountered an error. Please try again later."
+        elif code == 503:
+            rec = "Model unavailable. The model is temporarily overloaded or down. Please try again later."
+        else:
+            rec = f"API communication failed: {msg}"
+            
+        return code, rec
+
     def generate_summary(self, meta: CircularMeta, text: str) -> CircularSummary:
         """
         Generates the detailed AI Copilot dashboard for the circular.
@@ -57,36 +107,135 @@ class AIService:
         if not GENAI_AVAILABLE:
             return self._build_error(meta, "AI SDK not installed.")
 
-        if not text.strip():
-            return self._build_error(meta, "No readable text extracted from PDF.")
+        # Step 5: Validate extracted text length
+        cleaned_text = text.strip()
+        if len(cleaned_text) < 100:
+            logger.warning("Extracted text has only %d characters (minimum 100 required). Skipping Gemini call.", len(cleaned_text))
+            return self._build_error(meta, "No readable text extracted.")
 
-        prompt = PromptBuilder.build_summarize_prompt(meta, text)
+        prompt = PromptBuilder.build_summarize_prompt(meta, cleaned_text)
+        prompt_length = len(prompt)
+        input_tokens = prompt_length // 4  # Estimate input tokens: ~4 chars per token
 
-        for attempt in range(1, 3):
+        fallback_models = [
+            self._model_name,
+            "gemini-2.0-flash",
+            "gemini-1.5-flash",
+            "gemini-2.0-flash-lite",
+            "gemini-1.5-flash-8b",
+        ]
+        # Keep unique models in order
+        unique_models = []
+        for m in fallback_models:
+            if m and m not in unique_models:
+                unique_models.append(m)
+
+        last_error_code = 500
+        last_recommendation = "API call failed."
+        last_model_used = self._model_name
+
+        from src.utils.diagnostics import diagnostics_tracker
+
+        for model_name in unique_models:
+            last_model_used = model_name
+            logger.info("Attempting AI generation with model: %s", model_name)
+            
             try:
-                raw_response = self._call_gemini(prompt)
-                summary = self._parse_and_build(meta, raw_response)
-                
-                duration = time.time() - start_time
-                logger.info("Copilot generation completed for %r in %.2fs", meta.title, duration)
-                return summary
+                model = genai.GenerativeModel(
+                    model_name=model_name,
+                    system_instruction=PromptBuilder.get_system_instruction(),
+                    generation_config=genai.types.GenerationConfig(
+                        response_mime_type="application/json",
+                    ),
+                )
+            except Exception as e:
+                logger.error("Failed to initialize model %s: %s", model_name, e)
+                continue
 
-            except json.JSONDecodeError as exc:
-                logger.warning("Failures: JSON parsing failed on attempt %d: %s", attempt, exc)
-            except ValidationError as exc:
-                logger.warning("Failures: Schema validation failed on attempt %d: %s", attempt, exc)
-            except Exception as exc:  # pylint: disable=broad-exception-caught
-                err_str = str(exc)
-                if "429" in err_str or "Quota exceeded" in err_str:
-                    logger.warning("Failures: Gemini API quota exceeded.")
-                    return self._build_error(
-                        meta, "AI analysis is temporarily unavailable. Please retry later."
+            # Exponential backoff loop: Wait 2, 4, 8, 16 seconds. Max 3 retries (total 4 attempts per model).
+            backoff_seconds = [2, 4, 8, 16]
+            max_retries = 3
+
+            for attempt in range(max_retries + 1):
+                if attempt > 0:
+                    wait_time = backoff_seconds[attempt - 1]
+                    logger.info("Retrying model %s in %ds (attempt %d/%d) due to quota/temporary failures...", model_name, wait_time, attempt, max_retries)
+                    time.sleep(wait_time)
+
+                req_start = time.time()
+                try:
+                    logger.info("[%s] Gemini request started", datetime.now(timezone.utc).astimezone().strftime("%H:%M:%S"))
+                    response = model.generate_content(prompt)
+                    req_duration = time.time() - req_start
+
+                    if not response.text:
+                        raise ValueError("Gemini returned an empty response.")
+                    
+                    raw_response = response.text
+                    response_size = len(raw_response)
+
+                    # Step 6: Log Metrics
+                    logger.info("[%s] Gemini returned HTTP 200", datetime.now(timezone.utc).astimezone().strftime("%H:%M:%S"))
+                    logger.info(
+                        "Gemini Metrics — Model: %s, Duration: %.2fs, Input tokens est: %d, Prompt length: %d, Response size: %d",
+                        model_name, req_duration, input_tokens, prompt_length, response_size
                     )
-                
-                logger.error("Failures: Unexpected AI error on attempt %d: %s", attempt, exc, exc_info=True)
-                return self._build_error(meta, f"API communication failed: {exc}")
 
-        return self._build_error(meta, "AI failed to return valid JSON after retries.")
+                    # Parse and validate JSON
+                    summary = self._parse_and_build(meta, raw_response, model_name)
+                    
+                    # Log successful request in diagnostics
+                    diagnostics_tracker.record_request(req_duration, success=True)
+                    logger.info("[%s] JSON validated", datetime.now(timezone.utc).astimezone().strftime("%H:%M:%S"))
+
+                    duration = time.time() - start_time
+                    logger.info("Copilot generation completed for %r in %.2fs using %s", meta.title, duration, model_name)
+                    return summary
+
+                except json.JSONDecodeError as exc:
+                    req_duration = time.time() - req_start
+                    logger.warning("Failures: JSON parsing failed on model %s: %s", model_name, exc)
+                    last_error_code = 500
+                    last_recommendation = f"Gemini returned invalid JSON: {exc}"
+                    diagnostics_tracker.record_request(req_duration, success=False, error_msg=last_recommendation)
+                except ValidationError as exc:
+                    req_duration = time.time() - req_start
+                    logger.warning("Failures: Schema validation failed on model %s: %s", model_name, exc)
+                    last_error_code = 500
+                    last_recommendation = f"Schema validation failed: {exc}"
+                    diagnostics_tracker.record_request(req_duration, success=False, error_msg=last_recommendation)
+                except Exception as exc:
+                    req_duration = time.time() - req_start
+                    code, rec = self._parse_gemini_error(exc)
+                    logger.error("Failures: Gemini error on model %s (code %d): %s — Recommendation: %s", model_name, code, exc, rec)
+                    last_error_code = code
+                    last_recommendation = rec
+                    diagnostics_tracker.record_request(req_duration, success=False, error_msg=rec)
+
+                    # Parse Retry-After if 429
+                    if code == 429:
+                        retry_after = None
+                        if hasattr(exc, "response") and exc.response:
+                            headers = getattr(exc.response, "headers", {})
+                            if "Retry-After" in headers:
+                                try:
+                                    retry_after = int(headers["Retry-After"])
+                                except ValueError:
+                                    pass
+                        if retry_after is not None:
+                            logger.info("Retry-After header found: waiting %d seconds.", retry_after)
+                            time.sleep(retry_after)
+                    else:
+                        break
+
+        # If we reached here, all attempts and models failed
+        logger.error("Failures: All model fallbacks failed. Last model: %s, Last error code: %d, Recommendation: %s", last_model_used, last_error_code, last_recommendation)
+        
+        # If it is 429, we should return a specific message so the caller knows it is queued/exhausted
+        if last_error_code == 429:
+            return self._build_error(meta, "Analysis queued.")
+        
+        return self._build_error(meta, last_recommendation)
 
     def _call_gemini(self, prompt: str) -> str:
         """Calls Gemini and handles raw response."""
@@ -95,7 +244,7 @@ class AIService:
             raise ValueError("Gemini returned an empty response.")
         return response.text
 
-    def _parse_and_build(self, meta: CircularMeta, raw_response: str) -> CircularSummary:
+    def _parse_and_build(self, meta: CircularMeta, raw_response: str, model_name: str | None = None) -> CircularSummary:
         """Parses the raw JSON into the final CircularSummary Pydantic model."""
         cleaned = raw_response.strip()
         if cleaned.startswith("```json"):
@@ -127,7 +276,7 @@ class AIService:
             pdf_url=meta.pdf_url,
             hash=meta.hash,
             generated_at=datetime.now(timezone.utc).isoformat(),
-            ai_model=self._model_name,
+            ai_model=model_name or self._model_name,
             confidence_score=data.get("confidence_score", 0),
             rbi_reference_number=data.get("rbi_reference_number", "N/A"),
             

@@ -1,0 +1,306 @@
+<!DOCTYPE html>
+<html lang="en" class="h-full bg-slate-50/50">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI Pipeline Diagnostics — ComplianceAI</title>
+    <!-- Inter Font -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    fontFamily: {
+                        sans: ['Inter', 'sans-serif'],
+                    },
+                },
+            },
+        }
+    </script>
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+            -webkit-font-smoothing: antialiased;
+            -moz-osx-font-smoothing: grayscale;
+        }
+    </style>
+</head>
+<body class="h-full text-slate-800 antialiased">
+    <div class="min-h-full">
+        <!-- Navigation Header -->
+        <nav class="border-b border-slate-200/60 bg-white/80 backdrop-blur-md sticky top-0 z-50">
+            <div class="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
+                <div class="flex h-16 items-center justify-between">
+                    <div class="flex items-center gap-3">
+                        <span class="text-xl font-bold tracking-tight text-slate-900">Compliance<span class="text-indigo-600 font-semibold">AI</span></span>
+                        <span class="inline-flex items-center rounded-md bg-slate-100 px-2 py-1 text-xs font-medium text-slate-600 ring-1 ring-inset ring-slate-500/10">Diagnostics</span>
+                    </div>
+                    <div class="flex items-center gap-4">
+                        <a href="/" class="text-sm font-medium text-slate-600 hover:text-slate-900 transition-colors">
+                            &larr; Back to Dashboard
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </nav>
+
+        <!-- Main Workspace -->
+        <main class="py-8">
+            <div class="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
+                <!-- Page Title -->
+                <div class="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-8">
+                    <div>
+                        <h1 class="text-2xl font-bold tracking-tight text-slate-900">AI Pipeline Diagnostics</h1>
+                        <p class="mt-1 text-sm text-slate-500">Real-time status, rate limit monitoring, and self-healing systems metrics.</p>
+                    </div>
+                    <div>
+                        <button onclick="window.location.reload()" class="inline-flex items-center gap-2 rounded-md bg-white px-3 py-2 text-sm font-medium text-slate-700 shadow-sm ring-1 ring-inset ring-slate-300 hover:bg-slate-50 transition-colors">
+                            <svg class="h-4 w-4 text-slate-500" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" d="M16.023 9.348h4.992v-.001M2.985 19.644v-4.992m0 0h4.992m-4.993 0 3.181 3.183a8.25 8.25 0 0 0 13.803-3.7M4.031 9.865a8.25 8.25 0 0 1 13.803-3.7l3.181 3.182m0-4.991v4.99" />
+                            </svg>
+                            Refresh Diagnostics
+                        </button>
+                    </div>
+                </div>
+
+                <div class="grid grid-cols-1 gap-6 lg:grid-cols-3">
+                    <!-- Column 1: System Health Indicators -->
+                    <div class="space-y-6 lg:col-span-2">
+                        <!-- Top status card -->
+                        <div class="rounded-xl border border-slate-200/60 bg-white p-6 shadow-sm">
+                            <h2 class="text-base font-semibold leading-6 text-slate-900 mb-6">Core Status Checks</h2>
+                            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                <!-- API Key Loaded -->
+                                <div class="flex items-start gap-3 rounded-lg border border-slate-100 bg-slate-50/50 p-4">
+                                    <div class="mt-0.5">
+                                        {% if metrics.api_key_loaded %}
+                                            <span class="flex h-2.5 w-2.5 rounded-full bg-emerald-500"></span>
+                                        {% else %}
+                                            <span class="flex h-2.5 w-2.5 rounded-full bg-rose-500"></span>
+                                        {% endif %}
+                                    </div>
+                                    <div>
+                                        <p class="text-xs font-semibold text-slate-400 uppercase tracking-wider">Gemini API Key</p>
+                                        <p class="text-sm font-medium text-slate-900 mt-0.5">
+                                            {% if metrics.api_key_loaded %}Loaded & Sanitized{% else %}Missing or Empty{% endif %}
+                                        </p>
+                                        <p class="text-xs text-slate-500 mt-1">Automatic whitespace and quote stripping is active.</p>
+                                    </div>
+                                </div>
+
+                                <!-- Gemini Reachable -->
+                                <div class="flex items-start gap-3 rounded-lg border border-slate-100 bg-slate-50/50 p-4">
+                                    <div class="mt-0.5">
+                                        {% if metrics.gemini_reachable %}
+                                            <span class="flex h-2.5 w-2.5 rounded-full bg-emerald-500"></span>
+                                        {% else %}
+                                            <span class="flex h-2.5 w-2.5 rounded-full bg-rose-500"></span>
+                                        {% endif %}
+                                    </div>
+                                    <div>
+                                        <p class="text-xs font-semibold text-slate-400 uppercase tracking-wider">Gemini API Connection</p>
+                                        <p class="text-sm font-medium text-slate-900 mt-0.5">
+                                            {% if metrics.gemini_reachable %}Reachable{% else %}Unreachable{% endif %}
+                                        </p>
+                                        <p class="text-xs text-slate-500 mt-1">Verifies internet routing and DNS resolution to Google servers.</p>
+                                    </div>
+                                </div>
+
+                                <!-- Model Status -->
+                                <div class="flex items-start gap-3 rounded-lg border border-slate-100 bg-slate-50/50 p-4">
+                                    <div class="mt-0.5">
+                                        {% if metrics.current_model_status == 'active' %}
+                                            <span class="flex h-2.5 w-2.5 rounded-full bg-emerald-500"></span>
+                                        {% else %}
+                                            <span class="flex h-2.5 w-2.5 rounded-full bg-rose-500"></span>
+                                        {% endif %}
+                                    </div>
+                                    <div>
+                                        <p class="text-xs font-semibold text-slate-400 uppercase tracking-wider">Gemini Client Initialization</p>
+                                        <p class="text-sm font-medium text-slate-900 mt-0.5">
+                                            {% if metrics.current_model_status == 'active' %}Client Initialized{% else %}Initialization Failed{% endif %}
+                                        </p>
+                                        <p class="text-xs text-slate-500 mt-1">GenerativeModel instantiated successfully with active settings.</p>
+                                    </div>
+                                </div>
+
+                                <!-- Quota Status -->
+                                <div class="flex items-start gap-3 rounded-lg border border-slate-100 bg-slate-50/50 p-4">
+                                    <div class="mt-0.5">
+                                        {% if metrics.quota_status == 'ok' %}
+                                            <span class="flex h-2.5 w-2.5 rounded-full bg-emerald-500"></span>
+                                        {% elif metrics.quota_status == 'exhausted' %}
+                                            <span class="flex h-2.5 w-2.5 rounded-full bg-amber-500 animate-pulse"></span>
+                                        {% else %}
+                                            <span class="flex h-2.5 w-2.5 rounded-full bg-rose-500"></span>
+                                        {% endif %}
+                                    </div>
+                                    <div>
+                                        <p class="text-xs font-semibold text-slate-400 uppercase tracking-wider">Quota & Limits Status</p>
+                                        <p class="text-sm font-medium text-slate-900 mt-0.5">
+                                            {% if metrics.quota_status == 'ok' %}
+                                                Active (Normal)
+                                            {% elif metrics.quota_status == 'exhausted' %}
+                                                Exhausted (429 Rate Limited)
+                                            {% elif metrics.quota_status == 'invalid_key' %}
+                                                Invalid API Key
+                                            {% elif metrics.quota_status == 'permission_denied' %}
+                                                Permission Denied
+                                            {% else %}
+                                                {{ metrics.quota_status | capitalize }}
+                                            {% endif %}
+                                        </p>
+                                        <p class="text-xs text-slate-500 mt-1">Status confirmed via list_models validation request.</p>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Error Logs & Fallback Recommendation card -->
+                        <div class="rounded-xl border border-slate-200/60 bg-white p-6 shadow-sm">
+                            <h2 class="text-base font-semibold leading-6 text-slate-900 mb-4">Pipeline Errors & Recommendations</h2>
+                            
+                            {% if metrics.last_error %}
+                                <div class="rounded-lg bg-rose-50/50 border border-rose-100 p-4">
+                                    <div class="flex gap-3">
+                                        <svg class="h-5 w-5 text-rose-500 shrink-0 mt-0.5" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
+                                            <path stroke-linecap="round" stroke-linejoin="round" d="M12 9v3.75m-9.303 3.376c-.866 1.5.217 3.374 1.948 3.374h14.71c1.73 0 2.813-1.874 1.948-3.374L13.949 3.378c-.866-1.5-3.032-1.5-3.898 0L2.697 16.126ZM12 15.75h.007v.008H12v-.008Z" />
+                                        </svg>
+                                        <div>
+                                            <p class="text-sm font-semibold text-rose-900">Last Error Encountered</p>
+                                            <div class="mt-2 font-mono text-xs text-rose-800 bg-white/70 rounded border border-rose-100/60 p-2.5 select-all leading-relaxed break-all">
+                                                {{ metrics.last_error }}
+                                            </div>
+                                            <div class="mt-4">
+                                                <p class="text-xs font-semibold text-rose-900">Recommended System Action:</p>
+                                                <p class="text-xs text-rose-800 mt-1">
+                                                    {% if 'quota' in metrics.last_error.lower() or '429' in metrics.last_error.lower() %}
+                                                        The self-healing pipeline will automatically back off exponentially and fallback to smaller model types. If the failure persists, the job is deferred in the queue to preserve consistency.
+                                                    {% elif 'api key' in metrics.last_error.lower() or '401' in metrics.last_error.lower() %}
+                                                        Verify that `GOOGLE_API_KEY` inside `.env` matches the key issued in Google AI Studio, and contains no missing bytes.
+                                                    {% else %}
+                                                        Verify model settings in `config.py` or check the logs folder for full traceback.
+                                                    {% endif %}
+                                                </p>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            {% else %}
+                                <div class="rounded-lg bg-slate-50 border border-slate-100 p-8 text-center">
+                                    <svg class="mx-auto h-8 w-8 text-slate-400" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
+                                        <path stroke-linecap="round" stroke-linejoin="round" d="M9 12.75 11.25 15 15 9.75M21 12c0 1.268-.63 2.39-1.593 3.068a3.745 3.745 0 0 1-1.043 3.296 3.745 3.745 0 0 1-3.296 1.043A3.745 3.745 0 0 1 12 21c-1.268 0-2.39-.63-3.068-1.593a3.746 3.746 0 0 1-3.296-1.043 3.745 3.745 0 0 1-1.043-3.296A3.745 3.745 0 0 1 3 12c0-1.268.63-2.39 1.593-3.068a3.745 3.745 0 0 1 1.043-3.296 3.746 3.746 0 0 1 3.296-1.043A3.746 3.746 0 0 1 12 3c1.268 0 2.39.63 3.068 1.593a3.746 3.746 0 0 1 3.296 1.043 3.746 3.746 0 0 1 1.043 3.296A3.745 3.745 0 0 1 21 12Z" />
+                                    </svg>
+                                    <p class="mt-2 text-sm font-semibold text-slate-900">System Healthy</p>
+                                    <p class="mt-1 text-xs text-slate-500">No errors have been recorded in the current diagnostics window.</p>
+                                </div>
+                            {% endif %}
+                        </div>
+                    </div>
+
+                    <!-- Column 2: Stats & Configuration -->
+                    <div class="space-y-6">
+                        <!-- Model Config card -->
+                        <div class="rounded-xl border border-slate-200/60 bg-white p-6 shadow-sm">
+                            <h2 class="text-base font-semibold leading-6 text-slate-900 mb-4">Active Configuration</h2>
+                            <dl class="space-y-4">
+                                <div>
+                                    <dt class="text-xs font-semibold text-slate-400 uppercase tracking-wider">Primary Model</dt>
+                                    <dd class="text-sm font-medium text-slate-900 mt-1 select-all font-mono">{{ metrics.current_model }}</dd>
+                                </div>
+                                <div class="pt-4 border-t border-slate-100">
+                                    <dt class="text-xs font-semibold text-slate-400 uppercase tracking-wider">Fallback Order</dt>
+                                    <dd class="text-xs text-slate-500 mt-1.5 space-y-1">
+                                        <div class="flex items-center gap-1.5 text-slate-900 font-medium font-mono">
+                                            <span class="w-3 text-slate-400">1.</span> Primary Settings Model
+                                        </div>
+                                        <div class="flex items-center gap-1.5 font-mono">
+                                            <span class="w-3 text-slate-400">2.</span> gemini-2.0-flash
+                                        </div>
+                                        <div class="flex items-center gap-1.5 font-mono">
+                                            <span class="w-3 text-slate-400">3.</span> gemini-1.5-flash
+                                        </div>
+                                        <div class="flex items-center gap-1.5 font-mono">
+                                            <span class="w-3 text-slate-400">4.</span> gemini-2.0-flash-lite
+                                        </div>
+                                        <div class="flex items-center gap-1.5 font-mono">
+                                            <span class="w-3 text-slate-400">5.</span> gemini-1.5-flash-8b
+                                        </div>
+                                    </dd>
+                                </div>
+                            </dl>
+                        </div>
+
+                        <!-- API Performance Metrics card -->
+                        <div class="rounded-xl border border-slate-200/60 bg-white p-6 shadow-sm">
+                            <h2 class="text-base font-semibold leading-6 text-slate-900 mb-4">API Metrics</h2>
+                            <dl class="grid grid-cols-2 gap-4">
+                                <div class="bg-slate-50 rounded-lg p-3 border border-slate-100">
+                                    <dt class="text-xs font-medium text-slate-500">Requests Today</dt>
+                                    <dd class="text-xl font-bold text-slate-900 mt-1">{{ metrics.requests_today }}</dd>
+                                </div>
+                                <div class="bg-slate-50 rounded-lg p-3 border border-slate-100">
+                                    <dt class="text-xs font-medium text-slate-500">Avg Latency</dt>
+                                    <dd class="text-xl font-bold text-slate-900 mt-1">{{ metrics.average_response_time }}s</dd>
+                                </div>
+                                <div class="bg-slate-50 rounded-lg p-3 border border-slate-100">
+                                    <dt class="text-xs font-medium text-slate-500">Successful</dt>
+                                    <dd class="text-xl font-bold text-emerald-600 mt-1">{{ metrics.successful_requests }}</dd>
+                                </div>
+                                <div class="bg-slate-50 rounded-lg p-3 border border-slate-100">
+                                    <dt class="text-xs font-medium text-slate-500">Failed</dt>
+                                    <dd class="text-xl font-bold {% if metrics.failed_requests > 0 %}text-rose-600{% else %}text-slate-400{% endif %} mt-1">
+                                        {{ metrics.failed_requests }}
+                                    </dd>
+                                </div>
+                            </dl>
+                            <div class="pt-4 border-t border-slate-100 mt-4">
+                                <div class="flex justify-between items-center text-xs">
+                                    <span class="text-slate-500 font-medium">Last Successful Call</span>
+                                    <span class="text-slate-900 font-mono">
+                                        {% if metrics.last_successful_call %}
+                                            {{ metrics.last_successful_call.split('T')[1][:8] }} UTC
+                                        {% else %}
+                                            Never
+                                        {% endif %}
+                                    </span>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Caching metrics card -->
+                        <div class="rounded-xl border border-slate-200/60 bg-white p-6 shadow-sm">
+                            <h2 class="text-base font-semibold leading-6 text-slate-900 mb-4">JSON Cache Stats</h2>
+                            <dl class="space-y-3">
+                                <div class="flex justify-between items-center text-sm">
+                                    <dt class="text-slate-500">Cache Hits</dt>
+                                    <dd class="font-bold text-slate-900">{{ metrics.cache_hits }}</dd>
+                                </div>
+                                <div class="flex justify-between items-center text-sm">
+                                    <dt class="text-slate-500">Cache Misses</dt>
+                                    <dd class="font-bold text-slate-900">{{ metrics.cache_misses }}</dd>
+                                </div>
+                                <div class="flex justify-between items-center text-sm pt-2 border-t border-slate-100">
+                                    <dt class="font-medium text-slate-900">Hit Rate</dt>
+                                    <dd class="font-bold text-indigo-600">
+                                        {% set total_checks = metrics.cache_hits + metrics.cache_misses %}
+                                        {% if total_checks > 0 %}
+                                            {{ ((metrics.cache_hits / total_checks) * 100) | round(1) }}%
+                                        {% else %}
+                                            0.0%
+                                        {% endif %}
+                                    </dd>
+                                </div>
+                            </dl>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </main>
+    </div>
+</body>
+</html>
