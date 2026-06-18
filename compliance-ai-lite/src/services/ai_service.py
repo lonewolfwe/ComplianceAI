@@ -18,7 +18,7 @@ from pydantic import ValidationError
 from config import Settings
 from src.schemas.circular import (
     CircularMeta, CircularSummary, ExecutiveBrief, ApplicabilityDetail,
-    ImpactScores, DepartmentImpact, ChecklistItem, RoadmapMilestone, AIRoadmap, DecisionCenter
+    ImpactScores, DepartmentImpact, ChecklistItem, RoadmapMilestone, AIRoadmap, DecisionCenter, EvidenceItem
 )
 from src.services.prompt_builder import PromptBuilder
 from src.utils.logger import get_logger
@@ -216,7 +216,15 @@ class AIService:
                 requires_customer_communication=bool(dc.get("requires_customer_communication", False)),
                 estimated_internal_work=dc.get("estimated_internal_work", "N/A"),
                 recommended_owner=dc.get("recommended_owner", "N/A")
-            )
+            ),
+            evidence=[
+                EvidenceItem(
+                    quote=ev.get("quote", ""),
+                    section=ev.get("section", ""),
+                    page_number=str(ev.get("page_number", "Page 1"))
+                )
+                for ev in safe_list("evidence", []) if isinstance(ev, dict)
+            ]
         )
 
     def _build_error(self, meta: CircularMeta, reason: str) -> CircularSummary:
@@ -253,6 +261,7 @@ class AIService:
                 requires_legal_review=False, requires_customer_communication=False,
                 estimated_internal_work="PENDING", recommended_owner="Compliance Head"
             ),
+            evidence=[],
             
             summary_error=True,
             error_message=reason

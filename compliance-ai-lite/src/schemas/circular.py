@@ -84,6 +84,12 @@ class DecisionCenter(BaseModel):
     estimated_internal_work: str
     recommended_owner: str
 
+class EvidenceItem(BaseModel):
+    """An exact citation from the RBI circular supporting the AI analysis."""
+    quote: str
+    section: str
+    page_number: str
+
 class CircularSummary(BaseModel):
     """The fully detailed AI-generated compliance dashboard payload."""
     title: str
@@ -105,6 +111,7 @@ class CircularSummary(BaseModel):
     roadmap: AIRoadmap
     questions_management_should_ask: List[str]
     decision_center: DecisionCenter
+    evidence: List[EvidenceItem] = Field(default_factory=list)
 
     # Graceful degradation fields
     summary_error: bool = False

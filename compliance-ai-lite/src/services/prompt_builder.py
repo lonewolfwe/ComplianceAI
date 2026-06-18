@@ -39,9 +39,9 @@ Required JSON Structure:
   "confidence_score": <Integer between 0 and 100 representing your confidence in this analysis>,
   "rbi_reference_number": "<Extract the official RBI circular reference number, e.g. RBI/2026-27/123. Return N/A if none.>",
   "executive_brief": {{
-    "what_changed": "<Max 2 sentences describing the regulatory change>",
-    "why_it_matters": "<Max 2 sentences on the systemic importance>",
-    "business_impact": "<Max 2 sentences on how this affects business operations>"
+    "what_changed": "<Max 2 sentences describing the regulatory change. Must be under 3 lines and extremely concise.>",
+    "why_it_matters": "<Max 2 sentences on the systemic importance. Must be under 3 lines and extremely concise.>",
+    "business_impact": "<Immediate Recommendation: Max 2 sentences recommending immediate steps. Must be under 3 lines and extremely concise.>"
   }},
   "ceo_brief": "<A high-level 3-sentence summary specifically written for the CEO/Founder>",
   "compliance_impact": "<Detailed explanation of the direct impact on the compliance department>",
@@ -64,7 +64,7 @@ Required JSON Structure:
   }},
   "department_impacts": [
     {{
-      "department": "<e.g., Compliance, Legal, Treasury, Finance, Operations, Technology>",
+      "department": "<Compliance, Legal, Treasury, Finance, Operations, Technology>",
       "impact_level": "<High, Medium, or Low>",
       "required_actions": ["<Action 1>", "<Action 2>"],
       "estimated_time": "<e.g., 2 Weeks, 1 Month>"
@@ -89,7 +89,7 @@ Required JSON Structure:
     "<Intelligent question management should ask 2>"
   ],
   "decision_center": {{
-    "should_we_act": "<YES or NO>",
+    "should_we_act": "<YES, NO, or REVIEW>",
     "urgency": "<HIGH, MEDIUM, LOW, or NONE>",
     "business_impact": "<HIGH, MEDIUM, LOW, or NONE>",
     "financial_exposure": "<HIGH, MEDIUM, LOW, or NONE>",
@@ -98,7 +98,14 @@ Required JSON Structure:
     "requires_customer_communication": <true or false>,
     "estimated_internal_work": "<e.g., 4 Hours, 2 Days>",
     "recommended_owner": "<e.g., Compliance Head, CTO, CFO>"
-  }}
+  }},
+  "evidence": [
+    {{
+      "quote": "<Exact quote or paragraph from the RBI circular text supporting this insight>",
+      "section": "<Referenced section or clause, e.g., Clause 4.2>",
+      "page_number": "<Page number in PDF where the quote appears, e.g., Page 3. Write 'Page 1' if unknown.>"
+    }}
+  ]
 }}
 
 Circular Details:
