@@ -13,9 +13,16 @@ class CircularMeta(BaseModel):
     pdf_url: str
     hash: str = Field(default="")
 
+    circular_number: str = Field(default="")
+
     def model_post_init(self, context: Any) -> None:
+        if not self.circular_number:
+            import re
+            match = re.search(r"RBI/\d{4}-\d{2,4}/\d+", self.title)
+            self.circular_number = match.group(0) if match else "UNKNOWN"
+            
         if not self.hash:
-            raw = f"{self.pdf_url}_{self.date}_{self.title}".encode("utf-8")
+            raw = f"{self.pdf_url}_{self.date}_{self.circular_number}".encode("utf-8")
             self.hash = hashlib.sha256(raw).hexdigest()[:16]
 
 class ExecutiveBrief(BaseModel):
@@ -89,12 +96,14 @@ class CircularSummary(BaseModel):
     rbi_reference_number: str
 
     executive_brief: ExecutiveBrief
+    ceo_brief: str
+    compliance_impact: str
     applicability: Dict[str, ApplicabilityDetail]
     impact_scores: ImpactScores
     department_impacts: List[DepartmentImpact]
     checklist: List[ChecklistItem]
     roadmap: AIRoadmap
-    key_questions: List[str]
+    questions_management_should_ask: List[str]
     decision_center: DecisionCenter
 
     # Graceful degradation fields

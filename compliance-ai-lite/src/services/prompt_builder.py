@@ -43,6 +43,8 @@ Required JSON Structure:
     "why_it_matters": "<Max 2 sentences on the systemic importance>",
     "business_impact": "<Max 2 sentences on how this affects business operations>"
   }},
+  "ceo_brief": "<A high-level 3-sentence summary specifically written for the CEO/Founder>",
+  "compliance_impact": "<Detailed explanation of the direct impact on the compliance department>",
   "applicability": {{
     "NBFC": {{ "status": "<YES, NO, or PARTIALLY>", "reason": "<Why it applies or doesn't>" }},
     "Digital Lender": {{ "status": "<YES, NO, or PARTIALLY>", "reason": "<Reason>" }},
@@ -82,7 +84,7 @@ Required JSON Structure:
     "day_7": [{{ "task": "<Task>", "owner": "<Owner>", "risk": "<Risk>" }}],
     "day_30": [{{ "task": "<Task>", "owner": "<Owner>", "risk": "<Risk>" }}]
   }},
-  "key_questions": [
+  "questions_management_should_ask": [
     "<Intelligent question management should ask 1>",
     "<Intelligent question management should ask 2>"
   ],

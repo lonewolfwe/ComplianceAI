@@ -89,6 +89,43 @@ class PDFParser:
         finally:
             self._downloader.delete(result)
 
+    def download_and_extract_metadata(self, pdf_url: str) -> dict[str, typing.Any]:
+        """
+        Download a PDF, extract its text, and return text along with metadata (page_count, file_size_bytes).
+        """
+        logger.debug("Downloading and extracting PDF metadata: %s", pdf_url)
+        if not PYPDF_AVAILABLE:
+            logger.error("pypdf is not installed. PDF extraction skipped.")
+            return {"text": "", "page_count": 0, "file_size_bytes": 0}
+
+        try:
+            result = self._downloader.download(pdf_url)
+        except PDFDownloadError as exc:
+            logger.error("Failed to download PDF from %s: %s", pdf_url, exc)
+            return {"text": "", "page_count": 0, "file_size_bytes": 0}
+
+        try:
+            reader = PdfReader(result.path)
+            page_count = len(reader.pages)
+            raw_text = self._extract_pages(reader)
+            
+            cleaned_text = ""
+            if raw_text:
+                cleaned_text = self._normalise_whitespace(raw_text)
+                if cleaned_text:
+                    cleaned_text = self._truncate(cleaned_text)
+
+            return {
+                "text": cleaned_text,
+                "page_count": page_count,
+                "file_size_bytes": result.size_bytes
+            }
+        except Exception as exc:
+            logger.error("Error extracting PDF metadata: %s", exc)
+            return {"text": "", "page_count": 0, "file_size_bytes": result.size_bytes}
+        finally:
+            self._downloader.delete(result)
+
     def extract_from_path(self, path: Path) -> str:
         """
         Extract plain text from a local PDF file.

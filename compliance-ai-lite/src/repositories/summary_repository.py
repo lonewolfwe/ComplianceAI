@@ -20,7 +20,9 @@ class SummaryRepository:
         self.data_dir.mkdir(parents=True, exist_ok=True)
 
     def _get_file_path(self, hash_id: str) -> Path:
-        return self.data_dir / f"{hash_id}.json"
+        target_dir = self.data_dir / hash_id
+        target_dir.mkdir(parents=True, exist_ok=True)
+        return target_dir / "analysis.json"
 
     def get_summary(self, hash_id: str) -> Optional[CircularSummary]:
         """Retrieve a cached summary by its hash."""

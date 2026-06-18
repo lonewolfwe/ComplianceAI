@@ -137,6 +137,9 @@ class AIService:
                 business_impact=exec_brief.get("business_impact", "N/A")
             ),
             
+            ceo_brief=data.get("ceo_brief", "N/A"),
+            compliance_impact=data.get("compliance_impact", "N/A"),
+            
             applicability={
                 k: ApplicabilityDetail(
                     status=v.get("status", "UNKNOWN") if isinstance(v, dict) else "UNKNOWN",
@@ -201,7 +204,7 @@ class AIService:
                 ]
             ),
             
-            key_questions=safe_list("key_questions", []),
+            questions_management_should_ask=safe_list("questions_management_should_ask", []),
             
             decision_center=DecisionCenter(
                 should_we_act=dc.get("should_we_act", "N/A"),
@@ -226,11 +229,15 @@ class AIService:
             generated_at=datetime.now(timezone.utc).isoformat(),
             ai_model=self._model_name,
             confidence_score=0,
-            rbi_reference_number="N/A",
+            rbi_reference_number=meta.circular_number or "N/A",
             
             executive_brief=ExecutiveBrief(
-                what_changed="Error", why_it_matters="Error", business_impact=reason
+                what_changed="Compliance review is underway.", 
+                why_it_matters="The circular is queued for processing.", 
+                business_impact="Review document details and metadata in the workspace."
             ),
+            ceo_brief="AI analysis is currently being generated. You can continue reviewing the circular using the compliance workspace.",
+            compliance_impact="Asynchronous analysis is processing. The compliance team can track, assign, and update compliance tasks manually in the action items panel.",
             applicability={},
             impact_scores=ImpactScores(
                 overall=0.0, business_risk=0, legal_risk=0,
@@ -239,12 +246,12 @@ class AIService:
             department_impacts=[],
             checklist=[],
             roadmap=AIRoadmap(today=[], day_3=[], day_7=[], day_30=[]),
-            key_questions=[],
+            questions_management_should_ask=[],
             decision_center=DecisionCenter(
-                should_we_act="Error", urgency="Error", business_impact="Error",
-                financial_exposure="Error", requires_policy_update=False,
+                should_we_act="PENDING", urgency="PENDING", business_impact="PENDING",
+                financial_exposure="PENDING", requires_policy_update=False,
                 requires_legal_review=False, requires_customer_communication=False,
-                estimated_internal_work="Error", recommended_owner="Error"
+                estimated_internal_work="PENDING", recommended_owner="Compliance Head"
             ),
             
             summary_error=True,

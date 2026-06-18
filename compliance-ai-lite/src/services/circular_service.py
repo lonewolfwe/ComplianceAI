@@ -108,11 +108,20 @@ class CircularService:
             if self._job_repo:
                 self._job_repo.update_job(job_id, progress=30, step="Extracting PDF")
 
-            text = self._pdf_parser.download_and_extract(meta.pdf_url)
+            res = self._pdf_parser.download_and_extract_metadata(meta.pdf_url)
+            text = res["text"]
             if not text:
                 raise ValueError("Failed to extract readable text from PDF.")
 
-            heuristics = calculate_heuristics(meta.title, text)
+            all_circulars = self.get_latest_metadata()
+            heuristics = calculate_heuristics(
+                title=meta.title,
+                text=text,
+                page_count=res["page_count"],
+                file_size_bytes=res["file_size_bytes"],
+                all_circulars=all_circulars,
+                current_hash=meta.hash
+            )
 
             if self._job_repo:
                 self._job_repo.update_job(job_id, progress=60, step="Generating Compliance Report", heuristics=heuristics)

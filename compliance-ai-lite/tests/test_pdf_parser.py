@@ -1,7 +1,7 @@
 """
 Unit tests for the PDF parser module.
 
-Tests rely entirely on mocking ``pdfplumber`` and ``PDFDownloader`` to avoid
+Tests rely entirely on mocking ``pypdf`` and ``PDFDownloader`` to avoid
 hitting the network or requiring real binary PDF fixtures. This ensures tests
 run instantly and deterministically.
 """
@@ -12,15 +12,15 @@ from unittest.mock import MagicMock, patch
 import pytest
 
 try:
-    import pdfplumber.pdfminer.pdfparser
-    import pdfplumber
-    PDFPLUMBER_AVAILABLE = True
+    from pypdf import PdfReader
+    from pypdf.errors import PdfReadError
+    PYPDF_AVAILABLE = True
 except ImportError:
-    PDFPLUMBER_AVAILABLE = False
+    PYPDF_AVAILABLE = False
 
 pytestmark = pytest.mark.skipif(
-    not PDFPLUMBER_AVAILABLE,
-    reason="pdfplumber is not installed on this architecture",
+    not PYPDF_AVAILABLE,
+    reason="pypdf is not installed on this system",
 )
 
 from src.parsers.pdf_downloader import DownloadResult, PDFDownloadError
@@ -43,20 +43,17 @@ def _make_downloader() -> MagicMock:
 
 
 def _make_mock_page(text: str | None) -> MagicMock:
-    """Return a mock pdfplumber Page that returns ``text`` on extract_text()."""
+    """Return a mock pypdf Page that returns ``text`` on extract_text()."""
     page = MagicMock()
     page.extract_text.return_value = text
     return page
 
 
-def _make_mock_pdf(pages: list[MagicMock]) -> MagicMock:
-    """Return a mock pdfplumber.PDF object holding the given mock pages."""
-    pdf = MagicMock()
-    pdf.pages = pages
-    # Support using the mock as a context manager (with ... as pdf:)
-    pdf.__enter__.return_value = pdf
-    pdf.__exit__.return_value = None
-    return pdf
+def _make_mock_reader(pages: list[MagicMock]) -> MagicMock:
+    """Return a mock PdfReader object holding the given mock pages."""
+    reader = MagicMock()
+    reader.pages = pages
+    return reader
 
 
 # ── _extract_pages ────────────────────────────────────────────────────────────
@@ -67,13 +64,13 @@ class TestExtractPages:
 
     def test_extracts_text_from_single_page(self) -> None:
         """Must return text from a single page."""
-        pdf = _make_mock_pdf([_make_mock_page("Hello World")])
+        reader = _make_mock_reader([_make_mock_page("Hello World")])
         parser = PDFParser(_make_settings(), _make_downloader())
-        assert parser._extract_pages(pdf) == "Hello World"
+        assert parser._extract_pages(reader) == "Hello World"
 
     def test_concatenates_multiple_pages_with_spaces(self) -> None:
         """Must join text from multiple pages with a single space."""
-        pdf = _make_mock_pdf(
+        reader = _make_mock_reader(
             [
                 _make_mock_page("Page 1."),
                 _make_mock_page("Page 2."),
@@ -81,11 +78,11 @@ class TestExtractPages:
             ]
         )
         parser = PDFParser(_make_settings(), _make_downloader())
-        assert parser._extract_pages(pdf) == "Page 1. Page 2. Page 3."
+        assert parser._extract_pages(reader) == "Page 1. Page 2. Page 3."
 
     def test_skips_blank_pages(self) -> None:
         """Must silently ignore pages that return an empty string."""
-        pdf = _make_mock_pdf(
+        reader = _make_mock_reader(
             [
                 _make_mock_page("Page 1."),
                 _make_mock_page(""),
@@ -93,11 +90,11 @@ class TestExtractPages:
             ]
         )
         parser = PDFParser(_make_settings(), _make_downloader())
-        assert parser._extract_pages(pdf) == "Page 1. Page 3."
+        assert parser._extract_pages(reader) == "Page 1. Page 3."
 
     def test_skips_none_pages(self) -> None:
         """Must silently ignore pages that return None (e.g., image-only pages)."""
-        pdf = _make_mock_pdf(
+        reader = _make_mock_reader(
             [
                 _make_mock_page("Page 1."),
                 _make_mock_page(None),
@@ -105,19 +102,19 @@ class TestExtractPages:
             ]
         )
         parser = PDFParser(_make_settings(), _make_downloader())
-        assert parser._extract_pages(pdf) == "Page 1. Page 3."
+        assert parser._extract_pages(reader) == "Page 1. Page 3."
 
     def test_returns_empty_string_for_all_blank_pages(self) -> None:
         """Must return an empty string if no pages contain text."""
-        pdf = _make_mock_pdf([_make_mock_page(""), _make_mock_page(None)])
+        reader = _make_mock_reader([_make_mock_page(""), _make_mock_page(None)])
         parser = PDFParser(_make_settings(), _make_downloader())
-        assert parser._extract_pages(pdf) == ""
+        assert parser._extract_pages(reader) == ""
 
     def test_returns_empty_string_for_zero_pages(self) -> None:
         """Must handle a PDF with an empty pages list."""
-        pdf = _make_mock_pdf([])
+        reader = _make_mock_reader([])
         parser = PDFParser(_make_settings(), _make_downloader())
-        assert parser._extract_pages(pdf) == ""
+        assert parser._extract_pages(reader) == ""
 
 
 # ── _normalise_whitespace ─────────────────────────────────────────────────────
@@ -183,53 +180,53 @@ class TestTruncate:
 
 
 class TestExtractFromPath:
-    """Tests for PDFParser.extract_from_path() using a mocked pdfplumber."""
+    """Tests for PDFParser.extract_from_path() using a mocked pypdf.PdfReader."""
 
-    @patch("src.parsers.pdf_parser.pdfplumber.open")
-    def test_happy_path(self, mock_open: MagicMock) -> None:
+    @patch("src.parsers.pdf_parser.PdfReader")
+    def test_happy_path(self, mock_reader_cls: MagicMock) -> None:
         """Must orchestrate extraction, normalisation, and truncation correctly."""
-        mock_open.return_value = _make_mock_pdf([_make_mock_page("  Hello \n  World  ")])
+        mock_reader_cls.return_value = _make_mock_reader([_make_mock_page("  Hello \n  World  ")])
         parser = PDFParser(_make_settings(max_tokens=100), _make_downloader())
         
         result = parser.extract_from_path(Path("dummy.pdf"))
         
         assert result == "Hello World"
-        mock_open.assert_called_once_with(Path("dummy.pdf"))
+        mock_reader_cls.assert_called_once_with(Path("dummy.pdf"))
 
-    @patch("src.parsers.pdf_parser.pdfplumber.open")
-    def test_returns_empty_string_on_pdf_syntax_error(self, mock_open: MagicMock) -> None:
-        """Must catch PDFSyntaxError and return an empty string (corrupted PDF)."""
-        mock_open.side_effect = pdfplumber.pdfminer.pdfparser.PDFSyntaxError("Bad PDF")
+    @patch("src.parsers.pdf_parser.PdfReader")
+    def test_returns_empty_string_on_pdf_syntax_error(self, mock_reader_cls: MagicMock) -> None:
+        """Must catch PdfReadError and return an empty string (corrupted PDF)."""
+        mock_reader_cls.side_effect = PdfReadError("Bad PDF")
         parser = PDFParser(_make_settings(), _make_downloader())
         
         result = parser.extract_from_path(Path("dummy.pdf"))
         
         assert result == ""
 
-    @patch("src.parsers.pdf_parser.pdfplumber.open")
-    def test_returns_empty_string_on_unexpected_error(self, mock_open: MagicMock) -> None:
+    @patch("src.parsers.pdf_parser.PdfReader")
+    def test_returns_empty_string_on_unexpected_error(self, mock_reader_cls: MagicMock) -> None:
         """Must catch generic Exceptions and return an empty string (failsafe)."""
-        mock_open.side_effect = Exception("Out of memory or similar catastrophic failure")
+        mock_reader_cls.side_effect = Exception("Out of memory or similar catastrophic failure")
         parser = PDFParser(_make_settings(), _make_downloader())
         
         result = parser.extract_from_path(Path("dummy.pdf"))
         
         assert result == ""
 
-    @patch("src.parsers.pdf_parser.pdfplumber.open")
-    def test_returns_empty_string_when_no_text_extracted(self, mock_open: MagicMock) -> None:
+    @patch("src.parsers.pdf_parser.PdfReader")
+    def test_returns_empty_string_when_no_text_extracted(self, mock_reader_cls: MagicMock) -> None:
         """Must return empty string if the PDF is successfully opened but yields no text."""
-        mock_open.return_value = _make_mock_pdf([_make_mock_page("")])
+        mock_reader_cls.return_value = _make_mock_reader([_make_mock_page("")])
         parser = PDFParser(_make_settings(), _make_downloader())
         
         result = parser.extract_from_path(Path("dummy.pdf"))
         
         assert result == ""
 
-    @patch("src.parsers.pdf_parser.pdfplumber.open")
-    def test_returns_empty_string_when_only_whitespace_extracted(self, mock_open: MagicMock) -> None:
+    @patch("src.parsers.pdf_parser.PdfReader")
+    def test_returns_empty_string_when_only_whitespace_extracted(self, mock_reader_cls: MagicMock) -> None:
         """Must return empty string if normalisation reduces the content to nothing."""
-        mock_open.return_value = _make_mock_pdf([_make_mock_page("   \n\t   ")])
+        mock_reader_cls.return_value = _make_mock_reader([_make_mock_page("   \n\t   ")])
         parser = PDFParser(_make_settings(), _make_downloader())
         
         result = parser.extract_from_path(Path("dummy.pdf"))
@@ -271,7 +268,6 @@ class TestDownloadAndExtract:
             
             assert result == ""
             mock_extract.assert_not_called()
-            # If download fails, no DownloadResult is returned, so delete is not called.
             mock_downloader.delete.assert_not_called()
 
     def test_deletes_temp_file_even_if_extraction_raises(self) -> None:
@@ -286,5 +282,30 @@ class TestDownloadAndExtract:
             with pytest.raises(ValueError, match="Boom"):
                 parser.download_and_extract("http://rbi.org/A.pdf")
             
-            # The finally block must still execute the cleanup.
             mock_downloader.delete.assert_called_once_with(mock_result)
+
+
+# ── download_and_extract_metadata ─────────────────────────────────────────────
+
+
+class TestDownloadAndExtractMetadata:
+    """Tests for PDFParser.download_and_extract_metadata()."""
+
+    @patch("src.parsers.pdf_parser.PdfReader")
+    def test_extracts_metadata_correctly(self, mock_reader_cls: MagicMock) -> None:
+        """Must download, extract pages and return text, page_count, and size."""
+        mock_downloader = _make_downloader()
+        mock_result = DownloadResult(Path("temp.pdf"), "http://rbi.org/A.pdf", 2048, "application/pdf")
+        mock_downloader.download.return_value = mock_result
+        mock_reader_cls.return_value = _make_mock_reader([
+            _make_mock_page("Page one contents"),
+            _make_mock_page("Page two contents")
+        ])
+
+        parser = PDFParser(_make_settings(), mock_downloader)
+        res = parser.download_and_extract_metadata("http://rbi.org/A.pdf")
+
+        assert res["text"] == "Page one contents Page two contents"
+        assert res["page_count"] == 2
+        assert res["file_size_bytes"] == 2048
+        mock_downloader.delete.assert_called_once_with(mock_result)
