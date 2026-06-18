@@ -1,19 +1,30 @@
 """
-PDF downloader and text extractor for ComplianceAI Lite.
+PDF text extractor for ComplianceAI Lite.
 
-Responsible exclusively for:
-  1. Downloading a PDF from a given URL into memory (no disk writes).
-  2. Extracting plain text from that PDF using pdfplumber.
+Single Responsibility: extract plain text from a local PDF file path.
+Does not download PDFs, scrape websites, or call any AI service.
 
-Does not scrape, summarize, or call any AI service.
+Dependency injection
+--------------------
+    - settings:    Settings     — token limit (mandatory)
+    - downloader:  PDFDownloader — injected so the caller controls download
+                                   lifecycle and cleanup (mandatory)
+
+Public interface
+----------------
+    parser = PDFParser(settings=settings, downloader=downloader)
+    text: str = parser.download_and_extract("https://rbi.org.in/rdocs/A.pdf")
+    # or, if you already have a local path:
+    text: str = parser.extract_from_path(path)
 """
 
 import io
+from pathlib import Path
 
 import pdfplumber
-import requests
 
 from config import Settings
+from src.parsers.pdf_downloader import PDFDownloadError, PDFDownloader
 from src.utils.logger import get_logger
 
 logger = get_logger(__name__)
@@ -21,94 +32,122 @@ logger = get_logger(__name__)
 
 class PDFParser:
     """
-    Downloads RBI PDF circulars and extracts readable text content.
+    Extracts plain text from RBI PDF circular documents.
 
-    PDFs are never written to disk. They are downloaded into an in-memory
-    BytesIO buffer and processed entirely in memory to avoid filesystem
-    side-effects and simplify cleanup.
+    Accepts a ``PDFDownloader`` via constructor injection. This means the
+    caller (``CircularService``) controls the downloader's lifecycle and
+    temp-file cleanup, keeping each class focused on a single concern:
+
+      - ``PDFDownloader`` owns: HTTP download, temp storage, file validation.
+      - ``PDFParser``     owns: text extraction, whitespace normalisation,
+                                token truncation.
 
     Args:
-        settings: Application settings providing timeout and token limits.
+        settings:   Application settings providing the ``pdf_max_tokens`` limit.
+        downloader: An injected ``PDFDownloader`` instance.
     """
 
-    def __init__(self, settings: Settings) -> None:
-        self._timeout: int = settings.pdf_download_timeout_seconds
+    def __init__(self, settings: Settings, downloader: PDFDownloader) -> None:
         self._max_tokens: int = settings.pdf_max_tokens
-        self._headers: dict[str, str] = {
-            "User-Agent": settings.scraper_user_agent,
-        }
+        self._downloader: PDFDownloader = downloader
+
+    # ── Public interface ──────────────────────────────────────────────────────
 
     def download_and_extract(self, pdf_url: str) -> str:
         """
         Download a PDF from the given URL and return its extracted text.
 
-        The extracted text is truncated to `settings.pdf_max_tokens`
-        characters before being returned, to control Gemini token usage.
+        Orchestrates the full download → extract → cleanup sequence. The
+        temp file is always deleted after extraction, even on failure.
+
+        Returns an empty string rather than raising if the download fails or
+        the PDF contains no readable text (e.g., scanned image-only documents).
+        The caller must check for an empty result and handle it appropriately.
 
         Args:
-            pdf_url: The absolute URL of the PDF to download.
+            pdf_url: The absolute URL of the PDF to download and extract.
 
         Returns:
-            Extracted plain text from the PDF. Returns an empty string
-            if the download fails or the PDF contains no readable text
-            (e.g., scanned image-only documents).
-
-        Raises:
-            This method does not raise. All exceptions are caught,
-            logged, and an empty string is returned.
+            Extracted plain text, truncated to ``settings.pdf_max_tokens``
+            characters. Empty string on download or extraction failure.
         """
         raise NotImplementedError(
             "PDFParser.download_and_extract() will be implemented in Milestone 3."
         )
 
-    def _download_to_buffer(self, pdf_url: str) -> io.BytesIO:
+    def extract_from_path(self, path: Path) -> str:
         """
-        Stream a PDF from the given URL into an in-memory BytesIO buffer.
+        Extract plain text from a local PDF file.
+
+        Reads all pages using pdfplumber. Image-only pages yield no text
+        and are silently skipped. Excessive whitespace is normalised before
+        the text is returned.
 
         Args:
-            pdf_url: The absolute URL of the PDF to download.
+            path: Absolute path to a PDF file on disk.
 
         Returns:
-            A BytesIO buffer positioned at the start of the PDF bytes.
+            Extracted plain text, truncated to ``settings.pdf_max_tokens``
+            characters. Returns an empty string if no text can be extracted.
 
         Raises:
-            requests.RequestException: If the download fails after retries.
+            This method does not raise. All pdfplumber exceptions are caught,
+            logged, and an empty string is returned.
         """
         raise NotImplementedError(
-            "PDFParser._download_to_buffer() will be implemented in Milestone 3."
+            "PDFParser.extract_from_path() will be implemented in Milestone 3."
         )
 
-    def _extract_text_from_buffer(self, buffer: io.BytesIO) -> str:
-        """
-        Extract all readable text from an in-memory PDF buffer.
+    # ── Private helpers ───────────────────────────────────────────────────────
 
-        Image-only pages yield no text and are silently skipped.
-        Excessive whitespace is normalized before returning.
+    def _extract_pages(self, pdf: pdfplumber.PDF) -> str:
+        """
+        Concatenate text from all pages of an open pdfplumber.PDF object.
+
+        Pages that contain no extractable text (e.g., scanned images) are
+        silently skipped without raising.
 
         Args:
-            buffer: A BytesIO buffer containing the raw PDF bytes.
+            pdf: An open ``pdfplumber.PDF`` instance.
 
         Returns:
-            The concatenated plain-text content of all pages.
+            Raw concatenated text from all readable pages.
         """
         raise NotImplementedError(
-            "PDFParser._extract_text_from_buffer() will be implemented in Milestone 3."
+            "PDFParser._extract_pages() will be implemented in Milestone 3."
         )
 
-    def _truncate_text(self, text: str) -> str:
+    def _normalise_whitespace(self, text: str) -> str:
         """
-        Truncate extracted text to the configured maximum character count.
+        Collapse runs of whitespace characters to a single space and strip ends.
 
         Args:
-            text: The full extracted text string.
+            text: Raw extracted text from pdfplumber.
 
         Returns:
-            Text truncated to `self._max_tokens` characters.
+            Cleaned text with normalised whitespace.
+        """
+        raise NotImplementedError(
+            "PDFParser._normalise_whitespace() will be implemented in Milestone 3."
+        )
+
+    def _truncate(self, text: str) -> str:
+        """
+        Truncate text to ``self._max_tokens`` characters.
+
+        Truncation prevents excessively large inputs from being sent to the
+        Gemini API, controlling both latency and token cost.
+
+        Args:
+            text: The full extracted and normalised text string.
+
+        Returns:
+            Text capped at ``self._max_tokens`` characters.
         """
         if len(text) <= self._max_tokens:
             return text
         logger.debug(
-            "Truncating PDF text from %d to %d characters.",
+            "Truncating PDF text: %d → %d characters.",
             len(text),
             self._max_tokens,
         )

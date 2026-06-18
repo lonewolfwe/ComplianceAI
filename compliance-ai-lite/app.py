@@ -21,6 +21,7 @@ from fastapi.staticfiles import StaticFiles
 
 from config import get_settings, Settings
 from src.ai.gemini_client import GeminiClient
+from src.parsers.pdf_downloader import PDFDownloader
 from src.parsers.pdf_parser import PDFParser
 from src.routes.circulars import router as circulars_router
 from src.scraper.rbi_scraper import RBIScraper
@@ -65,12 +66,14 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
         ttl_seconds=settings.cache_ttl_minutes * 60
     )
     scraper = RBIScraper(settings=settings)
-    pdf_parser = PDFParser(settings=settings)
+    downloader = PDFDownloader(settings=settings)
+    pdf_parser = PDFParser(settings=settings, downloader=downloader)
     gemini_client = GeminiClient(settings=settings)
 
     circular_service = CircularService(
         settings=settings,
         scraper=scraper,
+        downloader=downloader,
         pdf_parser=pdf_parser,
         gemini_client=gemini_client,
         cache=cache,

@@ -11,6 +11,7 @@ does not know about HTTP, templates, or UI concerns.
 
 from config import Settings
 from src.ai.gemini_client import GeminiClient
+from src.parsers.pdf_downloader import PDFDownloader
 from src.parsers.pdf_parser import PDFParser
 from src.schemas.circular import CircularSummary
 from src.scraper.rbi_scraper import RBIScraper
@@ -26,9 +27,10 @@ class CircularService:
 
     On a cache miss, the service runs the following steps for each circular:
       1. RBIScraper fetches the list of latest circular metadata.
-      2. PDFParser downloads and extracts text from each circular's PDF.
-      3. GeminiClient generates a structured AI summary.
-      4. Results are stored in the TTL cache.
+      2. PDFDownloader downloads each circular's PDF to a temp file.
+      3. PDFParser extracts text from the temp file.
+      4. GeminiClient generates a structured AI summary.
+      5. Results are stored in the TTL cache.
 
     Processing is sequential and per-circular errors are isolated: a
     failure on one circular does not prevent the others from processing.
@@ -37,23 +39,26 @@ class CircularService:
     external network calls.
 
     Args:
-        settings: Application settings instance.
-        scraper: An RBIScraper instance.
-        pdf_parser: A PDFParser instance.
+        settings:     Application settings instance.
+        scraper:      An RBIScraper instance.
+        downloader:   A PDFDownloader instance.
+        pdf_parser:   A PDFParser instance.
         gemini_client: A GeminiClient instance.
-        cache: A TTLCache[list[CircularSummary]] instance.
+        cache:        A TTLCache[list[CircularSummary]] instance.
     """
 
     def __init__(
         self,
         settings: Settings,
         scraper: RBIScraper,
+        downloader: PDFDownloader,
         pdf_parser: PDFParser,
         gemini_client: GeminiClient,
         cache: TTLCache[list[CircularSummary]],
     ) -> None:
         self._settings: Settings = settings
         self._scraper: RBIScraper = scraper
+        self._downloader: PDFDownloader = downloader
         self._pdf_parser: PDFParser = pdf_parser
         self._gemini_client: GeminiClient = gemini_client
         self._cache: TTLCache[list[CircularSummary]] = cache
