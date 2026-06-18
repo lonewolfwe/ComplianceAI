@@ -150,8 +150,7 @@ class PDFDownloader:
         self._timeout: int = settings.pdf_download_timeout_seconds
         self._headers: dict[str, str] = {
             "User-Agent": settings.scraper_user_agent,
-            "Accept": "application/pdf,application/octet-stream,*/*;q=0.8",
-            "Accept-Encoding": "gzip, deflate, br",
+            "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,*/*;q=0.8",
         }
         self._temp_dir: Path = temp_dir or (
             Path(tempfile.gettempdir()) / TEMP_SUBDIR_NAME
