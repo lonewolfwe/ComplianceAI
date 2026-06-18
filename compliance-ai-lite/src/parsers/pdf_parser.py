@@ -23,11 +23,11 @@ import typing
 from pathlib import Path
 
 try:
-    import pdfplumber
-    import pdfplumber.pdfminer.pdfparser
-    PDFPLUMBER_AVAILABLE = True
+    from pypdf import PdfReader
+    from pypdf.errors import PdfReadError
+    PYPDF_AVAILABLE = True
 except ImportError:
-    PDFPLUMBER_AVAILABLE = False
+    PYPDF_AVAILABLE = False
 
 from config import Settings
 from src.parsers.pdf_downloader import PDFDownloadError, PDFDownloader
@@ -93,7 +93,7 @@ class PDFParser:
         """
         Extract plain text from a local PDF file.
 
-        Reads all pages using pdfplumber. Image-only pages yield no text
+        Reads all pages using pypdf. Image-only pages yield no text
         and are silently skipped. Excessive whitespace is normalised before
         the text is returned.
 
@@ -110,14 +110,14 @@ class PDFParser:
         """
         logger.debug("Extracting text from local PDF: %s", path)
         
-        if not PDFPLUMBER_AVAILABLE:
-            logger.error("pdfplumber is not installed. PDF extraction skipped.")
+        if not PYPDF_AVAILABLE:
+            logger.error("pypdf is not installed. PDF extraction skipped.")
             return ""
 
         try:
-            with pdfplumber.open(path) as pdf:
-                raw_text = self._extract_pages(pdf)
-        except pdfplumber.pdfminer.pdfparser.PDFSyntaxError as exc:
+            reader = PdfReader(path)
+            raw_text = self._extract_pages(reader)
+        except PdfReadError as exc:
             logger.error("PDF syntax error while parsing %s: %s", path, exc)
             return ""
         except Exception as exc:
@@ -137,24 +137,24 @@ class PDFParser:
 
     # ── Private helpers ───────────────────────────────────────────────────────
 
-    def _extract_pages(self, pdf: typing.Any) -> str:
+    def _extract_pages(self, reader: typing.Any) -> str:
         """
-        Concatenate text from all pages of an open pdfplumber.PDF object.
+        Concatenate text from all pages of a pypdf.PdfReader object.
 
         Pages that contain no extractable text (e.g., scanned images) are
         silently skipped without raising.
 
         Args:
-            pdf: An open ``pdfplumber.PDF`` instance.
+            reader: A ``pypdf.PdfReader`` instance.
 
         Returns:
             Raw concatenated text from all readable pages.
         """
-        if not PDFPLUMBER_AVAILABLE:
+        if not PYPDF_AVAILABLE:
             return ""
             
         pages_text: list[str] = []
-        for page in pdf.pages:
+        for page in reader.pages:
             text = page.extract_text()
             if text:
                 pages_text.append(text)
@@ -165,7 +165,7 @@ class PDFParser:
         Collapse runs of whitespace characters to a single space and strip ends.
 
         Args:
-            text: Raw extracted text from pdfplumber.
+            text: Raw extracted text from pypdf.
 
         Returns:
             Cleaned text with normalised whitespace.

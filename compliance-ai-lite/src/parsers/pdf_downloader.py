@@ -148,10 +148,6 @@ class PDFDownloader:
         temp_dir: Path | None = None,
     ) -> None:
         self._timeout: int = settings.pdf_download_timeout_seconds
-        self._headers: dict[str, str] = {
-            "User-Agent": settings.scraper_user_agent,
-            "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,*/*;q=0.8",
-        }
         self._temp_dir: Path = temp_dir or (
             Path(tempfile.gettempdir()) / TEMP_SUBDIR_NAME
         )
@@ -252,7 +248,6 @@ class PDFDownloader:
                 )
                 response = requests.get(
                     url,
-                    headers=self._headers,
                     timeout=self._timeout,
                     stream=True,
                     allow_redirects=True,

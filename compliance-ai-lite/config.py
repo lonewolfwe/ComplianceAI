@@ -37,7 +37,7 @@ class Settings(BaseSettings):
     )
     scraper_timeout_seconds: int = Field(default=10, description="HTTP timeout for scraper requests.")
     scraper_user_agent: str = Field(
-        default="ComplianceAI-Lite/1.0 (compliance monitoring tool; contact@example.com)",
+        default="Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
         description="User-Agent header sent with scraper requests.",
     )
 
