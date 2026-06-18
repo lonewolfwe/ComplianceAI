@@ -116,8 +116,6 @@ class RBIScraper:
             "User-Agent": settings.scraper_user_agent,
             "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
             "Accept-Language": "en-US,en;q=0.9",
-            "Accept-Encoding": "gzip, deflate, br",
-            "Connection": "keep-alive",
         }
 
     # ── Public interface ──────────────────────────────────────────────────
@@ -343,7 +341,13 @@ def _parse_row(row: Tag, source_url: str, base_url: str) -> RawCircular | None:
         return None
 
     href: str = anchor["href"].strip()  # type: ignore[index]
-    title: str = " ".join(anchor.get_text().split())
+    
+    # The RBI website structure changed: the link text is now the circular number, 
+    # and the actual title is in the 4th column (index 3).
+    if len(cells) >= 4 and len(cells[3].get_text(strip=True)) >= _MIN_TITLE_LENGTH:
+        title = " ".join(cells[3].get_text().split())
+    else:
+        title = " ".join(anchor.get_text().split())
 
     if not href or href.startswith("#"):
         logger.debug("Skipping anchor with non-navigable href %r.", href)
@@ -422,7 +426,7 @@ def _looks_like_date(text: str) -> bool:
     has_month_name = any(month in lower for month in month_abbreviations)
     # Match day/month separator only when bounded by non-digits on both sides,
     # e.g. "18/06" matches but "2026/123" does not (digit before the slash).
-    has_date_separator = bool(re.search(r"(?<!\d)\d{1,2}[/\-]\d{1,2}(?!\d)", text))
+    has_date_separator = bool(re.search(r"(?<!\d)\d{1,2}[/\-\.]\d{1,2}(?!\d)", text))
 
     return has_month_name or has_date_separator
 
