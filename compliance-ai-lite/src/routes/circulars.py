@@ -1,13 +1,5 @@
 """
-FastAPI route handlers for circular-related endpoints.
-
-All routes in this module:
-  - Receive the HTTP request.
-  - Validate input where required.
-  - Delegate to CircularService for all business logic.
-  - Return the response.
-
-No business logic lives here.
+API endpoints for managing and retrieving RBI compliance circulars.
 """
 
 import time
@@ -16,8 +8,8 @@ from fastapi import APIRouter, Depends, HTTPException, Request, status
 from fastapi.responses import HTMLResponse
 from fastapi.templating import Jinja2Templates
 
-from src.schemas.circular import CircularSummary, ErrorResponse
-from src.services.pipeline import CompliancePipeline
+from src.schemas.circular import CircularMeta, CircularSummary, ErrorResponse
+from src.services.circular_service import CircularService
 from src.utils.logger import get_logger
 
 logger = get_logger(__name__)
@@ -29,122 +21,88 @@ templates = Jinja2Templates(directory="templates")
 _last_refresh_time: float = 0.0
 
 
-def get_pipeline(request: Request) -> CompliancePipeline:
-    """
-    FastAPI dependency that retrieves the CompliancePipeline from app state.
-
-    The pipeline is registered on the app instance at startup and shared
-    across all requests.
-
-    Args:
-        request: The current FastAPI request object.
-
-    Returns:
-        The application-wide CompliancePipeline instance.
-    """
-    return request.app.state.pipeline
+def get_circular_service(request: Request) -> CircularService:
+    """Dependency injector for CircularService."""
+    return request.app.state.circular_service
 
 
 @router.get(
     "/",
     response_class=HTMLResponse,
     summary="Homepage",
-    description="Render the main page displaying the latest RBI circular summaries.",
+    description="Render the main page displaying the latest RBI circular titles.",
 )
 def index(
     request: Request,
-    pipeline: CompliancePipeline = Depends(get_pipeline),
+    circular_service: CircularService = Depends(get_circular_service),
 ) -> HTMLResponse:
-    """
-    Serve the homepage with the latest RBI circular summary cards.
-
-    Fetches circular summaries from the pipeline (which may return cached
-    data) and renders the Jinja2 index template.
-
-    Args:
-        request: The incoming HTTP request.
-        pipeline: The CompliancePipeline dependency.
-
-    Returns:
-        An HTMLResponse containing the rendered index.html template.
-    """
-    logger.info("GET / — Serving homepage.")
-    circulars: list[CircularSummary] = pipeline.get_circulars()
+    logger.info("GET / — Rendering homepage.")
+    circulars: list[CircularMeta] = circular_service.get_latest_metadata()
     return templates.TemplateResponse(
-        request=request,
-        name="index.html",
-        context={
-            "circulars": circulars,
-            "total": len(circulars),
-        },
+        "index.html",
+        {"request": request, "circulars": circulars},
     )
 
 
 @router.get(
     "/api/circulars",
-    response_model=list[CircularSummary],
-    summary="List circular summaries",
-    description="Return the latest RBI circular summaries as a JSON array.",
+    response_model=list[CircularMeta],
     responses={
         status.HTTP_503_SERVICE_UNAVAILABLE: {"model": ErrorResponse},
     },
 )
 def list_circulars(
-    pipeline: CompliancePipeline = Depends(get_pipeline),
-) -> list[CircularSummary]:
-    """
-    Return the latest RBI circular summaries as JSON.
+    circular_service: CircularService = Depends(get_circular_service),
+) -> list[CircularMeta]:
+    """Retrieve the latest RBI circular metadata."""
+    logger.info("GET /api/circulars — Fetching circular metadata.")
+    circulars: list[CircularMeta] = circular_service.get_latest_metadata()
 
-    Serves from cache when available. Runs the full pipeline on a cache miss.
-
-    Args:
-        pipeline: The CompliancePipeline dependency.
-
-    Returns:
-        A list of CircularSummary objects ordered most-recent first.
-
-    Raises:
-        HTTPException (503): If the pipeline fails entirely (no circulars available).
-    """
-    logger.info("GET /api/circulars — Fetching circular list.")
-    circulars: list[CircularSummary] = pipeline.get_circulars()
     if not circulars:
-        logger.warning("No circulars available. Returning 503.")
+        logger.error("No circular metadata could be fetched.")
         raise HTTPException(
             status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
-            detail="No circulars are currently available. The RBI website may be unreachable.",
+            detail="Failed to fetch circulars. The RBI website may be temporarily unreachable.",
         )
+
     return circulars
 
 
 @router.post(
-    "/api/refresh",
-    response_model=list[CircularSummary],
-    summary="Force refresh",
-    description="Invalidate the cache and re-fetch all circulars immediately.",
+    "/api/summarize",
+    response_model=CircularSummary,
     responses={
+        status.HTTP_500_INTERNAL_SERVER_ERROR: {"model": ErrorResponse},
+    },
+)
+def summarize_circular(
+    meta: CircularMeta,
+    circular_service: CircularService = Depends(get_circular_service),
+) -> CircularSummary:
+    """Lazy-load the AI summary for a specific circular."""
+    logger.info("POST /api/summarize — Requesting summary for %s", meta.hash)
+    try:
+        return circular_service.get_or_generate_summary(meta)
+    except Exception as exc:
+        logger.error("Failed to summarize circular %s: %s", meta.hash, exc, exc_info=True)
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="An error occurred while analyzing the circular."
+        )
+
+
+@router.post(
+    "/api/refresh",
+    response_model=list[CircularMeta],
+    responses={
+        status.HTTP_429_TOO_MANY_REQUESTS: {"model": ErrorResponse},
         status.HTTP_503_SERVICE_UNAVAILABLE: {"model": ErrorResponse},
     },
 )
 def refresh_circulars(
-    pipeline: CompliancePipeline = Depends(get_pipeline),
-) -> list[CircularSummary]:
-    """
-    Invalidate the cache and trigger a fresh fetch of all circulars.
-
-    This endpoint is intended for the manual refresh button in the UI.
-    It bypasses the TTL cache and re-runs the full scrape → parse →
-    summarize pipeline.
-
-    Args:
-        pipeline: The CompliancePipeline dependency.
-
-    Returns:
-        A freshly-fetched list of CircularSummary objects.
-
-    Raises:
-        HTTPException (503): If the refresh pipeline yields no results.
-    """
+    circular_service: CircularService = Depends(get_circular_service),
+) -> list[CircularMeta]:
+    """Force a manual refresh of the circular metadata cache."""
     global _last_refresh_time
     now = time.time()
     if now - _last_refresh_time < 60.0:
@@ -156,7 +114,7 @@ def refresh_circulars(
     _last_refresh_time = now
 
     logger.info("POST /api/refresh — Manual cache invalidation requested.")
-    circulars: list[CircularSummary] = pipeline.refresh()
+    circulars: list[CircularMeta] = circular_service.get_latest_metadata(force_refresh=True)
     if not circulars:
         raise HTTPException(
             status_code=status.HTTP_503_SERVICE_UNAVAILABLE,

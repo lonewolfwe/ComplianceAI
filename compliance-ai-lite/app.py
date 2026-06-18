@@ -25,9 +25,11 @@ from src.parsers.pdf_downloader import PDFDownloader
 from src.parsers.pdf_parser import PDFParser
 from src.routes.circulars import router as circulars_router
 from src.scraper.rbi_scraper import RBIScraper
-from src.schemas.circular import CircularSummary
-from src.services.pipeline import CompliancePipeline
-from src.utils.cache import TTLCache
+from src.schemas.circular import CircularMeta
+from src.services.circular_service import CircularService
+from src.services.ai_service import AIService
+from src.repositories.summary_repository import SummaryRepository
+from src.utils.cache_manager import CacheManager
 from src.utils.logger import configure_logging, get_logger
 
 # ── Bootstrap logging before anything else ────────────────────────────────────
@@ -40,19 +42,6 @@ logger = get_logger(__name__)
 
 @asynccontextmanager
 async def lifespan(app: FastAPI) -> AsyncIterator[None]:
-    """
-    Manage application startup and shutdown events.
-
-    On startup:
-      - Log environment information.
-      - Instantiate all shared services and attach them to app.state.
-
-    On shutdown:
-      - Log graceful shutdown.
-
-    Args:
-        app: The FastAPI application instance.
-    """
     logger.info(
         "Starting %s [env=%s, model=%s, limit=%d circulars].",
         settings.app_name,
@@ -61,26 +50,25 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
         settings.rbi_circular_limit,
     )
 
-    # Build the dependency graph manually (no DI framework needed at MVP scale).
-    cache: TTLCache[list[CircularSummary]] = TTLCache(
-        ttl_seconds=settings.cache_ttl_minutes * 60
-    )
+    # Build the new Dependency Graph
+    meta_cache = CacheManager[list[CircularMeta]](ttl_seconds=settings.cache_ttl_minutes * 60)
+    summary_repo = SummaryRepository(data_dir="data/summaries")
     scraper = RBIScraper(settings=settings)
     downloader = PDFDownloader(settings=settings)
     pdf_parser = PDFParser(settings=settings, downloader=downloader)
-    summarizer = GeminiSummarizer(settings=settings)
+    ai_service = AIService(settings=settings)
 
-    pipeline = CompliancePipeline(
+    circular_service = CircularService(
         settings=settings,
         scraper=scraper,
-        downloader=downloader,
         pdf_parser=pdf_parser,
-        summarizer=summarizer,
-        cache=cache,
+        ai_service=ai_service,
+        summary_repo=summary_repo,
+        meta_cache=meta_cache,
     )
 
-    # Attach to app.state so routes can access via request.app.state.
-    app.state.pipeline = pipeline
+    # Attach to app.state
+    app.state.circular_service = circular_service
 
     logger.info("%s is ready to serve requests.", settings.app_name)
 
