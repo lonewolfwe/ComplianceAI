@@ -2,12 +2,18 @@
 API endpoints for asynchronous AI analysis tracking.
 """
 
-from fastapi import APIRouter, Request, BackgroundTasks, HTTPException, status
+from fastapi import APIRouter, Request, BackgroundTasks, HTTPException, status, Depends
+from slowapi import Limiter, _rate_limit_exceeded_handler
+from slowapi.util import get_remote_address
+from slowapi.errors import RateLimitExceeded
 from src.schemas.circular import CircularMeta, CircularSummary
 from src.schemas.job import JobStartResponse, JobStatusResponse
 from src.services.circular_service import CircularService
 from src.repositories.job_repository import JobRepository
 from src.repositories.summary_repository import SummaryRepository
+
+# Initialize limiter: 10 requests per minute per IP
+limiter = Limiter(key_func=get_remote_address)
 
 router = APIRouter(prefix="/api/analysis", tags=["Analysis"])
 
