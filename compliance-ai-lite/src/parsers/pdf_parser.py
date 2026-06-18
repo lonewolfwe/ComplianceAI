@@ -19,10 +19,15 @@ Public interface
 """
 
 import re
+import typing
 from pathlib import Path
 
-import pdfplumber
-import pdfplumber.pdfminer.pdfparser
+try:
+    import pdfplumber
+    import pdfplumber.pdfminer.pdfparser
+    PDFPLUMBER_AVAILABLE = True
+except ImportError:
+    PDFPLUMBER_AVAILABLE = False
 
 from config import Settings
 from src.parsers.pdf_downloader import PDFDownloadError, PDFDownloader
@@ -104,6 +109,11 @@ class PDFParser:
             logged, and an empty string is returned.
         """
         logger.debug("Extracting text from local PDF: %s", path)
+        
+        if not PDFPLUMBER_AVAILABLE:
+            logger.error("pdfplumber is not installed. PDF extraction skipped.")
+            return ""
+
         try:
             with pdfplumber.open(path) as pdf:
                 raw_text = self._extract_pages(pdf)
@@ -127,7 +137,7 @@ class PDFParser:
 
     # ── Private helpers ───────────────────────────────────────────────────────
 
-    def _extract_pages(self, pdf: pdfplumber.PDF) -> str:
+    def _extract_pages(self, pdf: typing.Any) -> str:
         """
         Concatenate text from all pages of an open pdfplumber.PDF object.
 
@@ -140,6 +150,9 @@ class PDFParser:
         Returns:
             Raw concatenated text from all readable pages.
         """
+        if not PDFPLUMBER_AVAILABLE:
+            return ""
+            
         pages_text: list[str] = []
         for page in pdf.pages:
             text = page.extract_text()

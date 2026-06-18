@@ -74,7 +74,7 @@ class CompliancePipeline:
             A list of CircularSummary objects, ordered most-recent first.
             Returns an empty list if the pipeline fails entirely (e.g., scraper down).
         """
-        cached = self._cache.get(_CACHE_KEY)
+        cached = self._cache.get()
         if cached is not None:
             logger.info("Serving %d circular summaries from cache.", len(cached))
             return cached
@@ -92,7 +92,7 @@ class CompliancePipeline:
             A freshly-fetched list of CircularSummary objects.
         """
         logger.info("Manual refresh requested. Invalidating cache and running pipeline.")
-        self._cache.invalidate(_CACHE_KEY)
+        self._cache.invalidate()
         return self._run_pipeline()
 
     def _run_pipeline(self) -> list[CircularSummary]:
@@ -131,7 +131,7 @@ class CompliancePipeline:
         logger.info(
             "Pipeline completed successfully. Caching %d summaries.", len(summaries)
         )
-        self._cache.set(_CACHE_KEY, summaries)
+        self._cache.set(summaries)
         return summaries
 
     def _process_single_circular(self, meta: CircularMeta) -> CircularSummary:

@@ -13,7 +13,12 @@ Does not scrape websites, download PDFs, or orchestrate the pipeline.
 import json
 from typing import Literal
 
-import google.generativeai as genai
+try:
+    import google.generativeai as genai
+    GENAI_AVAILABLE = True
+except ImportError:
+    GENAI_AVAILABLE = False
+
 from pydantic import BaseModel, ValidationError
 
 from config import Settings
@@ -76,15 +81,19 @@ class GeminiSummarizer:
     """
 
     def __init__(self, settings: Settings) -> None:
-        # Initialize Google SDK
-        genai.configure(api_key=settings.google_api_key)
-        self._model = genai.GenerativeModel(
-            model_name=settings.gemini_model,
-            system_instruction=_SYSTEM_INSTRUCTION,
-            generation_config=genai.types.GenerationConfig(
-                response_mime_type="application/json",
-            ),
-        )
+        if GENAI_AVAILABLE:
+            # Initialize Google SDK
+            genai.configure(api_key=settings.google_api_key)
+            self._model = genai.GenerativeModel(
+                model_name=settings.gemini_model,
+                system_instruction=_SYSTEM_INSTRUCTION,
+                generation_config=genai.types.GenerationConfig(
+                    response_mime_type="application/json",
+                ),
+            )
+        else:
+            self._model = None
+            logger.error("google-generativeai is not installed. AI summarization is disabled.")
 
     def summarize(self, meta: CircularMeta, text: str) -> CircularSummary:
         """
@@ -102,6 +111,11 @@ class GeminiSummarizer:
             A CircularSummary populated with AI-generated fields, or
             a CircularSummary with summary_error=True on failure.
         """
+        if not GENAI_AVAILABLE:
+            return self._build_error_summary(
+                meta, "Google Generative AI SDK is not installed on this system."
+            )
+
         if not text.strip():
             return self._build_error_summary(
                 meta, "No readable text extracted from PDF."
