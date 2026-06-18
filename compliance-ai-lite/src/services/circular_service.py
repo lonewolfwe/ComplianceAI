@@ -11,7 +11,9 @@ from src.scraper.rbi_scraper import RBIScraper
 from src.parsers.pdf_parser import PDFParser
 from src.services.ai_service import AIService
 from src.repositories.summary_repository import SummaryRepository
+from src.repositories.job_repository import JobRepository
 from src.utils.cache_manager import CacheManager
+from src.utils.heuristics import calculate_heuristics
 from src.utils.logger import get_logger
 
 logger = get_logger(__name__)
@@ -28,6 +30,7 @@ class CircularService:
         ai_service: AIService,
         summary_repo: SummaryRepository,
         meta_cache: CacheManager[List[CircularMeta]],
+        job_repo: JobRepository | None = None,
     ):
         self._settings = settings
         self._scraper = scraper
@@ -35,6 +38,7 @@ class CircularService:
         self._ai_service = ai_service
         self._summary_repo = summary_repo
         self._meta_cache = meta_cache
+        self._job_repo = job_repo
 
     def get_latest_metadata(self, force_refresh: bool = False) -> List[CircularMeta]:
         """
@@ -85,3 +89,45 @@ class CircularService:
             self._summary_repo.save_summary(summary)
 
         return summary
+
+    def generate_summary_background(
+        self, meta: CircularMeta, job_id: str, force_regenerate: bool = False
+    ) -> None:
+        """Background task for generating summary and updating job status."""
+        try:
+            if self._job_repo:
+                self._job_repo.update_job(job_id, status="processing", progress=10, step="Loading RBI Circular")
+
+            if not force_regenerate:
+                cached_summary = self._summary_repo.get_summary(meta.hash)
+                if cached_summary:
+                    if self._job_repo:
+                        self._job_repo.update_job(job_id, status="completed", progress=100, step="Completed", result_hash=meta.hash)
+                    return
+
+            if self._job_repo:
+                self._job_repo.update_job(job_id, progress=30, step="Extracting PDF")
+
+            text = self._pdf_parser.download_and_extract(meta.pdf_url)
+            if not text:
+                raise ValueError("Failed to extract readable text from PDF.")
+
+            heuristics = calculate_heuristics(meta.title, text)
+
+            if self._job_repo:
+                self._job_repo.update_job(job_id, progress=60, step="Generating Compliance Report", heuristics=heuristics)
+
+            summary = self._ai_service.generate_summary(meta, text)
+
+            if not summary.summary_error:
+                self._summary_repo.save_summary(summary)
+                if self._job_repo:
+                    self._job_repo.update_job(job_id, status="completed", progress=100, step="Completed", result_hash=meta.hash)
+            else:
+                if self._job_repo:
+                    self._job_repo.update_job(job_id, status="failed", progress=100, step="Failed", error_message=summary.error_message)
+
+        except Exception as exc:  # pylint: disable=broad-exception-caught
+            logger.error("Background job %s failed: %s", job_id, exc, exc_info=True)
+            if self._job_repo:
+                self._job_repo.update_job(job_id, status="failed", progress=100, step="Failed", error_message=str(exc))

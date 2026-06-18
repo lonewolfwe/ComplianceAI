@@ -23,11 +23,13 @@ from config import get_settings, Settings
 from src.parsers.pdf_downloader import PDFDownloader
 from src.parsers.pdf_parser import PDFParser
 from src.routes.circulars import router as circulars_router
+from src.routes.analysis import router as analysis_router
 from src.scraper.rbi_scraper import RBIScraper
 from src.schemas.circular import CircularMeta
 from src.services.circular_service import CircularService
 from src.services.ai_service import AIService
 from src.repositories.summary_repository import SummaryRepository
+from src.repositories.job_repository import JobRepository
 from src.utils.cache_manager import CacheManager
 from src.utils.logger import configure_logging, get_logger
 
@@ -57,6 +59,7 @@ async def lifespan(fastapi_app: FastAPI) -> AsyncIterator[None]:
     downloader = PDFDownloader(settings=settings)
     pdf_parser = PDFParser(settings=settings, downloader=downloader)
     ai_service = AIService(settings=settings)
+    job_repo = JobRepository()
 
     circular_service = CircularService(
         settings=settings,
@@ -65,10 +68,13 @@ async def lifespan(fastapi_app: FastAPI) -> AsyncIterator[None]:
         ai_service=ai_service,
         summary_repo=summary_repo,
         meta_cache=meta_cache,
+        job_repo=job_repo,
     )
 
     # Attach to app.state
     app.state.circular_service = circular_service
+    app.state.job_repo = job_repo
+    app.state.summary_repo = summary_repo
 
     logger.info("%s is ready to serve requests.", settings.app_name)
 
@@ -108,6 +114,7 @@ def create_app() -> FastAPI:
 
     # Register routers.
     application.include_router(circulars_router)
+    application.include_router(analysis_router)
 
     return application
 

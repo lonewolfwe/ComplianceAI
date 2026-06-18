@@ -18,7 +18,7 @@ from pydantic import ValidationError
 from config import Settings
 from src.schemas.circular import (
     CircularMeta, CircularSummary, ExecutiveBrief, ApplicabilityDetail,
-    ImpactScores, DepartmentImpact, ChecklistItem, RoadmapMilestone, AIRoadmap, BoardBrief
+    ImpactScores, DepartmentImpact, ChecklistItem, RoadmapMilestone, AIRoadmap, DecisionCenter
 )
 from src.services.prompt_builder import PromptBuilder
 from src.utils.logger import get_logger
@@ -119,7 +119,7 @@ class AIService:
         exec_brief = safe_dict("executive_brief", {})
         impacts = safe_dict("impact_scores", {})
         roadmap_data = safe_dict("roadmap", {})
-        board = safe_dict("board_brief", {})
+        dc = safe_dict("decision_center", {})
         
         return CircularSummary(
             title=meta.title,
@@ -203,11 +203,16 @@ class AIService:
             
             key_questions=safe_list("key_questions", []),
             
-            board_brief=BoardBrief(
-                business_risk=board.get("business_risk", "N/A"),
-                financial_impact=board.get("financial_impact", "N/A"),
-                urgency=board.get("urgency", "N/A"),
-                recommendation=board.get("recommendation", "N/A")
+            decision_center=DecisionCenter(
+                should_we_act=dc.get("should_we_act", "N/A"),
+                urgency=dc.get("urgency", "N/A"),
+                business_impact=dc.get("business_impact", "N/A"),
+                financial_exposure=dc.get("financial_exposure", "N/A"),
+                requires_policy_update=bool(dc.get("requires_policy_update", False)),
+                requires_legal_review=bool(dc.get("requires_legal_review", False)),
+                requires_customer_communication=bool(dc.get("requires_customer_communication", False)),
+                estimated_internal_work=dc.get("estimated_internal_work", "N/A"),
+                recommended_owner=dc.get("recommended_owner", "N/A")
             )
         )
 
@@ -235,9 +240,11 @@ class AIService:
             checklist=[],
             roadmap=AIRoadmap(today=[], day_3=[], day_7=[], day_30=[]),
             key_questions=[],
-            board_brief=BoardBrief(
-                business_risk="Error", financial_impact="Error",
-                urgency="Error", recommendation=reason
+            decision_center=DecisionCenter(
+                should_we_act="Error", urgency="Error", business_impact="Error",
+                financial_exposure="Error", requires_policy_update=False,
+                requires_legal_review=False, requires_customer_communication=False,
+                estimated_internal_work="Error", recommended_owner="Error"
             ),
             
             summary_error=True,

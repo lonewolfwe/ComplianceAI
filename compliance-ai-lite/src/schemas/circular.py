@@ -15,7 +15,7 @@ class CircularMeta(BaseModel):
 
     def model_post_init(self, context: Any) -> None:
         if not self.hash:
-            raw = f"{self.pdf_url}_{self.date}".encode("utf-8")
+            raw = f"{self.pdf_url}_{self.date}_{self.title}".encode("utf-8")
             self.hash = hashlib.sha256(raw).hexdigest()[:16]
 
 class ExecutiveBrief(BaseModel):
@@ -65,12 +65,17 @@ class AIRoadmap(BaseModel):
     day_7: List[RoadmapMilestone]
     day_30: List[RoadmapMilestone]
 
-class BoardBrief(BaseModel):
-    """High-level summary intended for the Board of Directors."""
-    business_risk: str
-    financial_impact: str
+class DecisionCenter(BaseModel):
+    """Action-oriented compliance decision card."""
+    should_we_act: str
     urgency: str
-    recommendation: str
+    business_impact: str
+    financial_exposure: str
+    requires_policy_update: bool
+    requires_legal_review: bool
+    requires_customer_communication: bool
+    estimated_internal_work: str
+    recommended_owner: str
 
 class CircularSummary(BaseModel):
     """The fully detailed AI-generated compliance dashboard payload."""
@@ -90,7 +95,7 @@ class CircularSummary(BaseModel):
     checklist: List[ChecklistItem]
     roadmap: AIRoadmap
     key_questions: List[str]
-    board_brief: BoardBrief
+    decision_center: DecisionCenter
 
     # Graceful degradation fields
     summary_error: bool = False

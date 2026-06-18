@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>{{ meta.title }} | ComplianceAI Copilot</title>
+  <title>{{ meta.title }} | Compliance Workspace</title>
   
   <script src="https://cdn.tailwindcss.com"></script>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet" />
@@ -14,17 +14,15 @@
         extend: {
           fontFamily: { sans: ['Inter', 'sans-serif'] },
           colors: {
-            glass: 'rgba(255, 255, 255, 0.03)',
-            glassBorder: 'rgba(255, 255, 255, 0.08)',
-            brand: { 400: '#818cf8', 500: '#6366f1', 600: '#4f46e5' }
+            brand: { 50: '#eff6ff', 100: '#dbeafe', 500: '#3b82f6', 600: '#2563eb', 900: '#1e3a8a' }
           },
           animation: {
-            'fade-in': 'fadeIn 0.5s ease-out',
+            'fade-in': 'fadeIn 0.3s ease-out forwards',
             'pulse-slow': 'pulse 3s cubic-bezier(0.4, 0, 0.6, 1) infinite',
           },
           keyframes: {
             fadeIn: {
-              '0%': { opacity: '0', transform: 'translateY(10px)' },
+              '0%': { opacity: '0', transform: 'translateY(5px)' },
               '100%': { opacity: '1', transform: 'translateY(0)' },
             }
           }
@@ -32,218 +30,253 @@
       }
     }
   </script>
+  <style>
+    /* Enterprise Utility Classes */
+    .card { @apply bg-white border border-slate-200 rounded-xl shadow-sm p-6; }
+    .heading-sm { @apply text-xs font-semibold text-slate-500 uppercase tracking-wider mb-3 block; }
+    
+    /* Scroll Progress */
+    #reading-progress { transform-origin: 0% 50%; }
+
+    /* Print Styles */
+    @media print {
+        body { background: white !important; color: black !important; }
+        nav, .no-print, button, select, input[type="date"], textarea, #ai-progress-section { display: none !important; }
+        .card { border: none !important; box-shadow: none !important; padding: 0 !important; margin-bottom: 2rem !important; page-break-inside: avoid; }
+        .grid { display: block !important; }
+        .col-span-2 { width: 100% !important; }
+        h1 { font-size: 24pt !important; margin-bottom: 1rem !important; }
+        h2 { font-size: 16pt !important; border-bottom: 1px solid #ccc; padding-bottom: 0.5rem; margin-bottom: 1rem !important; }
+        .text-slate-500, .text-slate-400 { color: #555 !important; }
+        * { color: black !important; }
+    }
+  </style>
 </head>
-<body class="bg-[#0b0f19] text-slate-300 font-sans min-h-screen antialiased selection:bg-brand-500/30 selection:text-brand-100">
+<body class="bg-slate-50 text-slate-800 font-sans min-h-screen antialiased selection:bg-brand-100 selection:text-brand-900">
+
+  <!-- READING PROGRESS -->
+  <div class="fixed top-0 left-0 w-full h-1 bg-slate-100 z-[60] no-print">
+    <div id="reading-progress" class="h-full bg-brand-500 w-full scale-x-0 transition-transform duration-150"></div>
+  </div>
 
   <!-- TOP NAV -->
-  <nav class="border-b border-glassBorder bg-[#0b0f19]/80 backdrop-blur-md sticky top-0 z-50">
-    <div class="max-w-7xl mx-auto px-6 h-16 flex items-center justify-between">
-      <a href="/" class="flex items-center gap-2 group">
-        <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 text-slate-400 group-hover:text-brand-400 transition" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18" />
-        </svg>
-        <span class="text-sm font-medium text-slate-400 group-hover:text-white transition">Back to Hub</span>
-      </a>
-      <div class="flex items-center gap-3">
-        <div class="h-2 w-2 rounded-full bg-emerald-500 animate-pulse-slow"></div>
-        <span class="text-xs font-semibold tracking-widest text-emerald-500 uppercase">Copilot Active</span>
+  <nav class="border-b border-slate-200 bg-white/90 backdrop-blur-md sticky top-0 z-50 no-print">
+    <div class="max-w-screen-xl mx-auto px-6 h-14 flex items-center justify-between">
+      <div class="flex items-center gap-6">
+          <a href="/" class="flex items-center gap-2 group text-slate-500 hover:text-slate-900 transition">
+            <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18" />
+            </svg>
+            <span class="text-sm font-medium">Hub</span>
+          </a>
+          <div class="h-4 w-px bg-slate-200"></div>
+          <div class="flex items-center gap-2">
+            <div id="ai-status-indicator" class="h-2 w-2 rounded-full bg-amber-500 animate-pulse-slow"></div>
+            <span id="ai-status-text" class="text-xs font-semibold tracking-wide text-slate-600">Syncing Workspace</span>
+          </div>
+      </div>
+      <div class="flex items-center gap-2">
+          <button onclick="window.print()" class="p-2 text-slate-400 hover:text-slate-700 hover:bg-slate-100 rounded-md transition" title="Print / Export PDF">
+              <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z" /></svg>
+          </button>
+          <button class="p-2 text-slate-400 hover:text-brand-600 hover:bg-brand-50 rounded-md transition" title="Bookmark">
+              <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 5a2 2 0 012-2h10a2 2 0 012 2v16l-7-3.5L5 21V5z" /></svg>
+          </button>
+          <button class="p-2 text-slate-400 hover:text-slate-700 hover:bg-slate-100 rounded-md transition" title="Share">
+              <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8.684 13.342C8.886 12.938 9 12.482 9 12c0-.482-.114-.938-.316-1.342m0 2.684a3 3 0 110-2.684m0 2.684l6.632 3.316m-6.632-6l6.632-3.316m0 0a3 3 0 105.367-2.684 3 3 0 00-5.367 2.684zm0 9.316a3 3 0 105.368 2.684 3 3 0 00-5.368-2.684z" /></svg>
+          </button>
       </div>
     </div>
   </nav>
 
-  <main class="max-w-7xl mx-auto px-6 py-10 relative">
+  <main class="max-w-screen-xl mx-auto px-6 py-8 relative">
     
-    <!-- INITIAL LOADING STATE -->
-    <div id="loading-state" class="flex flex-col items-center justify-center min-h-[60vh] animate-fade-in">
-        <div class="relative w-24 h-24 mb-8">
-            <div class="absolute inset-0 rounded-full border-t-2 border-brand-500 animate-spin"></div>
-            <div class="absolute inset-2 rounded-full border-t-2 border-brand-400 animate-spin" style="animation-direction: reverse; animation-duration: 1.5s;"></div>
-            <div class="absolute inset-0 flex items-center justify-center text-brand-400">
-                <svg xmlns="http://www.w3.org/2000/svg" class="h-8 w-8" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M13 10V3L4 14h7v7l9-11h-7z" />
-                </svg>
-            </div>
-        </div>
-        <h2 class="text-2xl font-bold text-white mb-2">Analyzing Regulatory Impact</h2>
-        <p class="text-slate-500 text-sm max-w-md text-center">Copilot is reading the circular, determining applicability, mapping risks, and generating compliance roadmaps.</p>
-    </div>
-
-    <!-- ERROR STATE -->
-    <div id="error-state" class="hidden flex flex-col items-center justify-center min-h-[50vh] animate-fade-in">
-        <svg xmlns="http://www.w3.org/2000/svg" class="h-16 w-16 text-red-500 mb-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
-        </svg>
-        <h2 class="text-xl font-bold text-white mb-2">Analysis Failed</h2>
-        <p id="error-message" class="text-red-400/80 text-sm mb-6"></p>
-        <button onclick="window.location.reload()" class="bg-glass border border-glassBorder hover:bg-white/10 px-4 py-2 rounded-lg text-sm text-white transition">Try Again</button>
-    </div>
-
-    <!-- COPILOT WORKSPACE (HIDDEN INITIALLY) -->
-    <div id="workspace" class="hidden space-y-8 pb-20 animate-fade-in">
+    <div id="workspace" class="space-y-6 opacity-0 animate-fade-in">
         
-        <!-- 1. HERO SECTION -->
-        <header class="mb-12">
-            <div class="flex flex-wrap gap-3 mb-4">
-                <span class="px-3 py-1 bg-brand-500/10 text-brand-400 border border-brand-500/20 rounded-full text-xs font-semibold tracking-wide flex items-center gap-1.5">
-                    <svg xmlns="http://www.w3.org/2000/svg" class="h-3.5 w-3.5" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd" /></svg>
-                    AI Generated
-                </span>
-                <span id="ui-confidence" class="px-3 py-1 bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 rounded-full text-xs font-semibold tracking-wide">
-                    95% Confidence
-                </span>
-                <span id="ui-ref" class="px-3 py-1 bg-glass border border-glassBorder text-slate-400 rounded-full text-xs font-medium">
-                    REF: RBI/2026/123
-                </span>
+        <!-- HEADER -->
+        <header class="mb-8">
+            <div class="flex flex-wrap items-center gap-2 mb-4">
+                <span id="ui-doc-type" class="px-2.5 py-1 bg-slate-200 text-slate-700 rounded text-[11px] font-bold uppercase tracking-wide">Document</span>
+                <span id="ui-tags" class="flex gap-2"></span>
             </div>
             
-            <h1 class="text-3xl md:text-5xl font-extrabold text-white leading-tight mb-4 tracking-tight" style="text-wrap: balance;">
+            <h1 class="text-3xl md:text-4xl font-bold text-slate-900 leading-tight mb-6 tracking-tight" style="text-wrap: balance;">
                 {{ meta.title }}
             </h1>
             
-            <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-glassBorder pb-8">
-                <div class="text-sm text-slate-500 flex items-center gap-4">
-                    <span class="flex items-center gap-1.5"><svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" /></svg> {{ meta.date }}</span>
-                    <span class="flex items-center gap-1.5"><svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" /></svg> Generated: <span id="ui-generated-at"></span></span>
+            <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-slate-200 pb-6">
+                <div class="flex flex-wrap items-center gap-x-6 gap-y-2 text-sm text-slate-500">
+                    <span class="flex items-center gap-1.5"><svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" /></svg> {{ meta.date }}</span>
+                    <span class="flex items-center gap-1.5"><svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" /></svg> <span id="ui-reading-time">Calculating...</span></span>
+                    <span class="flex items-center gap-1.5"><svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" /></svg> Complexity: <span id="ui-complexity" class="font-medium text-slate-700">Analyzing</span></span>
                 </div>
                 
-                <div class="flex gap-3">
-                    <button id="btn-regenerate" class="px-4 py-2 bg-glass border border-glassBorder hover:bg-white/5 rounded-lg text-sm font-medium transition flex items-center gap-2">
-                        <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" /></svg>
-                        Regenerate
-                    </button>
-                    <a href="{{ meta.pdf_url }}" target="_blank" class="px-4 py-2 bg-brand-600 hover:bg-brand-500 shadow-lg shadow-brand-500/20 text-white rounded-lg text-sm font-medium transition flex items-center gap-2">
-                        <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-3-3m3 3l3-3M3 17V7a2 2 0 012-2h6l2 2h6a2 2 0 012 2v8a2 2 0 01-2 2H5a2 2 0 01-2-2z" /></svg>
-                        Original Document
+                <div class="flex gap-3 no-print">
+                    <a href="{{ meta.pdf_url }}" target="_blank" class="px-4 py-2 bg-white border border-slate-300 hover:bg-slate-50 text-slate-700 rounded-lg text-sm font-medium transition shadow-sm flex items-center gap-2">
+                        View Original PDF
                     </a>
                 </div>
             </div>
         </header>
 
-        <!-- TWO COLUMN LAYOUT -->
         <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
             
             <!-- LEFT MAIN COLUMN -->
-            <div class="lg:col-span-2 space-y-8">
+            <div class="lg:col-span-2 space-y-6">
                 
-                <!-- 2. EXECUTIVE BRIEF -->
-                <section class="bg-glass border border-glassBorder rounded-2xl p-6 relative overflow-hidden">
-                    <div class="absolute top-0 right-0 p-4 opacity-10">
-                        <svg xmlns="http://www.w3.org/2000/svg" class="h-24 w-24" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" /></svg>
-                    </div>
-                    <div class="flex items-center justify-between mb-5">
-                        <h2 class="text-lg font-bold text-white flex items-center gap-2">
-                            <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 text-brand-400" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M18 3a1 1 0 00-1.447-.894L8.763 6H5a3 3 0 000 6h.28l1.771 5.316A1 1 0 008 18h1a1 1 0 001-1v-4.382l6.553 3.276A1 1 0 0018 15V3z" clip-rule="evenodd" /></svg>
-                            Executive Brief
+                <!-- AI PIPELINE PROGRESS -->
+                <section id="ai-progress-section" class="card bg-brand-50 border-brand-100 transition-all">
+                    <div class="flex items-center justify-between mb-2">
+                        <h2 class="text-sm font-bold text-brand-900 flex items-center gap-2">
+                            <svg class="animate-spin h-4 w-4 text-brand-600" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>
+                            Compliance Engine Active
                         </h2>
-                        <span class="text-xs text-slate-500">45s Read</span>
+                        <span id="ai-step-text" class="text-xs font-medium text-brand-600">Initializing...</span>
                     </div>
+                    <div class="w-full bg-brand-100/50 rounded-full h-1.5 overflow-hidden">
+                        <div id="ai-progress-bar" class="bg-brand-500 h-1.5 rounded-full transition-all duration-500" style="width: 0%"></div>
+                    </div>
+                </section>
+
+                <!-- EXECUTIVE BRIEF -->
+                <section class="card">
+                    <span class="heading-sm">Executive Brief</span>
+                    <div id="exec-brief-container" class="space-y-4">
+                        <p class="text-slate-500 leading-relaxed italic">Analysis is currently queued. Please review the original document.</p>
+                    </div>
+                </section>
+
+                <!-- KEYWORDS (HEURISTIC) -->
+                <section class="card">
+                    <span class="heading-sm">Extracted Keywords</span>
+                    <div id="ui-keywords" class="flex flex-wrap gap-2 text-sm text-slate-600">
+                        <span class="text-slate-400 italic">Processing...</span>
+                    </div>
+                </section>
+
+                <!-- AI GENERATED ROADMAP & CHECKLIST (HIDDEN UNTIL READY) -->
+                <div id="ai-results-container" class="space-y-6 hidden">
                     
-                    <div class="space-y-4 relative z-10">
-                        <div>
-                            <h3 class="text-xs font-semibold text-brand-400 uppercase tracking-wider mb-1">What Changed</h3>
-                            <p id="ui-what-changed" class="text-slate-300 leading-relaxed"></p>
+                    <section class="card">
+                        <div class="flex justify-between items-center mb-4">
+                            <span class="heading-sm !mb-0">Department Impact</span>
+                            <span class="text-xs font-medium bg-slate-100 text-slate-600 px-2 py-0.5 rounded">AI Generated</span>
                         </div>
-                        <div>
-                            <h3 class="text-xs font-semibold text-brand-400 uppercase tracking-wider mb-1">Why It Matters</h3>
-                            <p id="ui-why-matters" class="text-slate-300 leading-relaxed"></p>
-                        </div>
-                        <div>
-                            <h3 class="text-xs font-semibold text-brand-400 uppercase tracking-wider mb-1">Business Impact</h3>
-                            <p id="ui-biz-impact" class="text-slate-300 leading-relaxed"></p>
-                        </div>
-                    </div>
-                </section>
+                        <div id="ui-departments" class="grid sm:grid-cols-2 gap-4"></div>
+                    </section>
+                    
+                    <section class="card">
+                        <span class="heading-sm">Action Checklist</span>
+                        <ul id="ui-checklist" class="divide-y divide-slate-100 border-t border-slate-100"></ul>
+                    </section>
+                </div>
 
-                <!-- 5. DEPARTMENT IMPACT -->
-                <section>
-                    <h2 class="text-lg font-bold text-white mb-4">Department Impact Analysis</h2>
-                    <div id="ui-departments" class="grid sm:grid-cols-2 gap-4">
-                        <!-- Populated via JS -->
+                <!-- INTERNAL NOTES (MANUAL) -->
+                <section class="card bg-amber-50/30 border-amber-100/50">
+                    <div class="flex items-center justify-between mb-3">
+                        <span class="heading-sm text-amber-800 !mb-0">Internal Notes</span>
+                        <span id="notes-status" class="text-[10px] uppercase font-bold text-amber-600 tracking-wider">Auto-saved</span>
                     </div>
-                </section>
-
-                <!-- 7. IMPLEMENTATION ROADMAP -->
-                <section>
-                    <h2 class="text-lg font-bold text-white mb-4">AI Implementation Roadmap</h2>
-                    <div class="bg-glass border border-glassBorder rounded-2xl p-6">
-                        <div id="ui-roadmap" class="space-y-8 relative before:absolute before:inset-0 before:ml-2 before:-translate-x-px md:before:mx-auto md:before:translate-x-0 before:h-full before:w-0.5 before:bg-gradient-to-b before:from-transparent before:via-slate-700 before:to-transparent">
-                            <!-- Populated via JS -->
-                        </div>
-                    </div>
-                </section>
-
-                <!-- 6. ACTION CHECKLIST -->
-                <section>
-                    <h2 class="text-lg font-bold text-white mb-4">Compliance Action Checklist</h2>
-                    <div class="bg-glass border border-glassBorder rounded-2xl overflow-hidden">
-                        <ul id="ui-checklist" class="divide-y divide-glassBorder">
-                            <!-- Populated via JS -->
-                        </ul>
-                    </div>
+                    <textarea id="internal-notes" class="w-full bg-white border border-amber-200 text-sm text-slate-800 rounded-lg p-4 h-40 focus:ring-2 focus:ring-amber-500 focus:border-amber-500 outline-none resize-y placeholder:text-slate-400" placeholder="Record internal observations, legal interpretations, or meeting notes here..."></textarea>
                 </section>
 
             </div>
 
             <!-- RIGHT SIDEBAR -->
-            <div class="space-y-8">
+            <div class="space-y-6">
                 
-                <!-- 9. EXECUTIVE BOARD BRIEF -->
-                <section class="bg-gradient-to-br from-brand-900/40 to-slate-900 border border-brand-500/30 rounded-2xl p-6 shadow-lg shadow-brand-900/20">
-                    <h2 class="text-sm font-bold text-brand-300 uppercase tracking-wider mb-4 flex items-center gap-2">
-                        <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" viewBox="0 0 20 20" fill="currentColor"><path d="M10 12a2 2 0 100-4 2 2 0 000 4z" /><path fill-rule="evenodd" d="M.458 10C1.732 5.943 5.522 3 10 3s8.268 2.943 9.542 7c-1.274 4.057-5.064 7-9.542 7S1.732 14.057.458 10zM14 10a4 4 0 11-8 0 4 4 0 018 0z" clip-rule="evenodd" /></svg>
-                        Board Briefing
-                    </h2>
-                    <div class="space-y-3">
-                        <div><span class="text-xs text-slate-400 block mb-0.5">Urgency</span><span id="ui-board-urgency" class="text-sm font-medium text-white"></span></div>
-                        <div><span class="text-xs text-slate-400 block mb-0.5">Risk</span><span id="ui-board-risk" class="text-sm text-slate-300"></span></div>
-                        <div><span class="text-xs text-slate-400 block mb-0.5">Financial</span><span id="ui-board-fin" class="text-sm text-slate-300"></span></div>
-                        <div class="pt-2 border-t border-brand-500/20"><span class="text-xs text-brand-400 block mb-0.5 font-semibold">Recommendation</span><span id="ui-board-rec" class="text-sm text-white font-medium"></span></div>
+                <!-- DECISION CENTER (HIDDEN UNTIL READY) -->
+                <section id="ai-decision-center" class="hidden card border-brand-200 bg-gradient-to-b from-brand-50 to-white shadow-md shadow-brand-100/50">
+                    <span class="heading-sm text-brand-700">Decision Center</span>
+                    
+                    <div class="flex items-center justify-between py-3 border-b border-brand-100">
+                        <span class="text-sm font-medium text-slate-700">Should We Act?</span>
+                        <span id="dc-act" class="px-2 py-1 bg-brand-100 text-brand-800 text-xs font-bold rounded"></span>
                     </div>
-                </section>
-
-                <!-- 3. APPLICABILITY CHECKER -->
-                <section class="bg-glass border border-glassBorder rounded-2xl p-6">
-                    <h2 class="text-sm font-bold text-white uppercase tracking-wider mb-4">Applicability Checker</h2>
-                    <label class="block text-xs text-slate-400 mb-2">Select your company type:</label>
-                    <select id="company-selector" class="w-full bg-slate-900 border border-slate-700 text-sm text-white rounded-lg px-3 py-2 focus:ring-2 focus:ring-brand-500 outline-none mb-4">
-                        <option value="NBFC">NBFC</option>
-                        <option value="Digital Lender">Digital Lender</option>
-                        <option value="Payment Aggregator">Payment Aggregator</option>
-                        <option value="Payment Bank">Payment Bank</option>
-                        <option value="Small Finance Bank">Small Finance Bank</option>
-                        <option value="Co-operative Bank">Co-operative Bank</option>
-                        <option value="FinTech Startup">FinTech Startup</option>
-                    </select>
-
-                    <div id="applicability-result" class="rounded-xl p-4 border transition-all">
-                        <div class="flex items-center justify-between mb-2">
-                            <span class="text-xs text-slate-400 font-medium uppercase">Applies to you?</span>
-                            <span id="app-status-badge" class="px-2 py-0.5 rounded text-xs font-bold"></span>
-                        </div>
-                        <p id="app-reason" class="text-sm text-slate-300"></p>
+                    <div class="flex items-center justify-between py-3 border-b border-brand-100">
+                        <span class="text-sm font-medium text-slate-700">Urgency</span>
+                        <span id="dc-urgency" class="text-sm font-bold"></span>
                     </div>
-                </section>
-
-                <!-- 4. IMPACT SCORES -->
-                <section class="bg-glass border border-glassBorder rounded-2xl p-6">
-                    <div class="flex items-end justify-between mb-6">
-                        <h2 class="text-sm font-bold text-white uppercase tracking-wider">Impact Scores</h2>
-                        <div class="text-right">
-                            <span id="ui-score-overall" class="text-3xl font-black text-brand-400 leading-none"></span><span class="text-slate-500">/10</span>
-                        </div>
+                    <div class="flex items-center justify-between py-3 border-b border-brand-100">
+                        <span class="text-sm font-medium text-slate-700">Business Impact</span>
+                        <span id="dc-biz" class="text-sm font-medium text-slate-900"></span>
+                    </div>
+                    <div class="flex items-center justify-between py-3 border-b border-brand-100">
+                        <span class="text-sm font-medium text-slate-700">Financial Exposure</span>
+                        <span id="dc-fin" class="text-sm font-medium text-slate-900"></span>
                     </div>
                     
-                    <div class="space-y-4" id="ui-progress-bars">
-                        <!-- Populated via JS -->
+                    <div class="py-4 space-y-2">
+                        <div class="flex items-center gap-2 text-sm text-slate-700">
+                            <span id="dc-policy-icon"></span> Requires Policy Update
+                        </div>
+                        <div class="flex items-center gap-2 text-sm text-slate-700">
+                            <span id="dc-legal-icon"></span> Requires Legal Review
+                        </div>
+                        <div class="flex items-center gap-2 text-sm text-slate-700">
+                            <span id="dc-cust-icon"></span> Customer Communication
+                        </div>
+                    </div>
+
+                    <div class="pt-3 border-t border-brand-100">
+                        <div class="text-xs text-slate-500 mb-1">Estimated Internal Work</div>
+                        <div id="dc-work" class="text-sm font-medium text-slate-900 mb-3"></div>
+                        <div class="text-xs text-slate-500 mb-1">Recommended Owner</div>
+                        <div id="dc-owner" class="text-sm font-medium text-slate-900"></div>
                     </div>
                 </section>
 
-                <!-- 8. KEY QUESTIONS -->
-                <section class="bg-glass border border-glassBorder rounded-2xl p-6">
-                    <h2 class="text-sm font-bold text-white uppercase tracking-wider mb-4">Key Questions for MGT</h2>
-                    <ul id="ui-questions" class="space-y-3">
-                        <!-- Populated via JS -->
-                    </ul>
+                <!-- WORKSPACE ASSIGNMENTS -->
+                <section class="card">
+                    <span class="heading-sm">Workspace Properties</span>
+                    <div class="space-y-4">
+                        <div>
+                            <label class="block text-xs font-medium text-slate-600 mb-1.5">Risk Assessment</label>
+                            <select class="w-full bg-slate-50 border border-slate-200 text-sm text-slate-800 rounded-lg px-3 py-2 focus:ring-1 focus:ring-brand-500 outline-none">
+                                <option>Pending Review</option>
+                                <option>Low Risk</option>
+                                <option>Medium Risk</option>
+                                <option>High Risk</option>
+                                <option>Critical</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label class="block text-xs font-medium text-slate-600 mb-1.5">Primary Department</label>
+                            <select class="w-full bg-slate-50 border border-slate-200 text-sm text-slate-800 rounded-lg px-3 py-2 focus:ring-1 focus:ring-brand-500 outline-none">
+                                <option>Unassigned</option>
+                                <option>Compliance</option>
+                                <option>Legal</option>
+                                <option>Treasury</option>
+                                <option>Operations</option>
+                                <option>Product & Tech</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label class="block text-xs font-medium text-slate-600 mb-1.5">Implementation Status</label>
+                            <select class="w-full bg-slate-50 border border-slate-200 text-sm text-slate-800 rounded-lg px-3 py-2 focus:ring-1 focus:ring-brand-500 outline-none">
+                                <option>Not Started</option>
+                                <option>Reviewing</option>
+                                <option>In Progress</option>
+                                <option>Completed</option>
+                                <option>Not Applicable</option>
+                            </select>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- TIMELINE -->
+                <section class="card">
+                    <span class="heading-sm">Compliance Timeline</span>
+                    <div class="space-y-4">
+                        <div>
+                            <label class="block text-[11px] font-semibold text-slate-500 uppercase tracking-wide mb-1">Target Review Date</label>
+                            <input type="date" class="w-full bg-white border border-slate-200 text-sm text-slate-800 rounded-md px-3 py-1.5 focus:ring-1 focus:ring-brand-500 outline-none" />
+                        </div>
+                        <div>
+                            <label class="block text-[11px] font-semibold text-slate-500 uppercase tracking-wide mb-1">Implementation Deadline</label>
+                            <input type="date" class="w-full bg-white border border-slate-200 text-sm text-slate-800 rounded-md px-3 py-1.5 focus:ring-1 focus:ring-brand-500 outline-none" />
+                        </div>
+                    </div>
                 </section>
 
             </div>
@@ -253,230 +286,249 @@
 
   <script>
     const metaPayload = {
-        title: "{{ meta.title }}",
-        date: "{{ meta.date }}",
-        pdf_url: "{{ meta.pdf_url }}",
-        hash: "{{ meta.hash }}"
+        title: "{{ meta.title | escapejs }}",
+        date: "{{ meta.date | escapejs }}",
+        pdf_url: "{{ meta.pdf_url | escapejs }}",
+        hash: "{{ meta.hash | escapejs }}"
     };
 
-    let globalApplicability = {};
+    let activeJobId = null;
+    let pollInterval = null;
 
     document.addEventListener('DOMContentLoaded', () => {
-        fetchWorkspaceData();
-
-        document.getElementById('company-selector').addEventListener('change', (e) => {
-            renderApplicability(e.target.value);
-        });
-
-        document.getElementById('btn-regenerate').addEventListener('click', async () => {
-            if(!confirm("Are you sure you want to regenerate this analysis? This will overwrite the cache.")) return;
-            document.getElementById('workspace').classList.add('hidden');
-            document.getElementById('loading-state').classList.remove('hidden');
-            await fetchWorkspaceData(true);
-        });
+        applyClientHeuristics();
+        setupNotesAutosave();
+        setupScrollProgress();
+        startAIAnalysis();
     });
 
-    async function fetchWorkspaceData(forceRegenerate = false) {
-        const endpoint = forceRegenerate ? '/api/regenerate' : '/api/summarize';
+    // === NON-AI DETERMINISTIC HEURISTICS ===
+    function applyClientHeuristics() {
+        const title = metaPayload.title.toUpperCase();
+        
+        // 1. Document Type
+        let docType = "Circular";
+        if (title.includes("MASTER DIRECTION")) docType = "Master Direction";
+        else if (title.includes("NOTIFICATION")) docType = "Notification";
+        else if (title.includes("PRESS RELEASE")) docType = "Press Release";
+        else if (title.includes("GUIDELINE")) docType = "Guideline";
+        else if (title.includes("FAQ") || title.includes("QUESTIONS")) docType = "FAQ";
+        document.getElementById('ui-doc-type').textContent = docType;
+
+        // 2. Regulation Tags
+        const keywords = {
+            "NBFC": ["NBFC", "NON-BANKING"],
+            "KYC / AML": ["KYC", "AML", "CUSTOMER DUE DILIGENCE"],
+            "Digital Lending": ["DIGITAL LENDING", "LENDING APP"],
+            "Payments": ["PAYMENT", "PA/PG", "PPI", "PREPAID"],
+            "FEMA": ["FOREIGN EXCHANGE", "FEMA", "CROSS-BORDER"],
+            "Cybersecurity": ["CYBER", "IT FRAMEWORK", "SECURITY"]
+        };
+        
+        const tagsContainer = document.getElementById('ui-tags');
+        let foundTags = 0;
+        for (const [tag, triggers] of Object.entries(keywords)) {
+            if (triggers.some(t => title.includes(t))) {
+                tagsContainer.innerHTML += `<span class="px-2.5 py-1 bg-slate-100 text-slate-600 rounded text-[11px] font-bold uppercase tracking-wide border border-slate-200">${tag}</span>`;
+                foundTags++;
+            }
+        }
+        if (foundTags === 0) {
+            tagsContainer.innerHTML += `<span class="px-2.5 py-1 bg-slate-100 text-slate-600 rounded text-[11px] font-bold uppercase tracking-wide border border-slate-200">General Compliance</span>`;
+        }
+    }
+
+    function setupScrollProgress() {
+        const bar = document.getElementById('reading-progress');
+        window.addEventListener('scroll', () => {
+            const docHeight = document.documentElement.scrollHeight - document.documentElement.clientHeight;
+            const scrolled = (window.scrollY / docHeight);
+            bar.style.transform = `scaleX(${Math.max(0, Math.min(1, scrolled))})`;
+        });
+    }
+
+    function setupNotesAutosave() {
+        const notesArea = document.getElementById('internal-notes');
+        const statusText = document.getElementById('notes-status');
+        const storageKey = 'enterprise_notes_' + metaPayload.hash;
+
+        const saved = localStorage.getItem(storageKey);
+        if (saved) notesArea.value = saved;
+
+        notesArea.addEventListener('input', () => {
+            localStorage.setItem(storageKey, notesArea.value);
+            statusText.textContent = 'Saving...';
+            setTimeout(() => statusText.textContent = 'Auto-saved', 500);
+        });
+    }
+
+    // === BACKGROUND GENERATION & POLLING ===
+    async function startAIAnalysis() {
         try {
-            const response = await fetch(endpoint, {
+            const response = await fetch('/api/analysis/start', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify(metaPayload)
             });
             const data = await response.json();
             
-            if (!response.ok || data.summary_error) {
-                throw new Error(data.error_message || data.detail || 'Analysis failed to generate.');
+            if (!response.ok) throw new Error('Failed to start analysis');
+            
+            activeJobId = data.job_id;
+            
+            if (data.status === 'completed') {
+                fetchFinalResult(activeJobId);
+            } else {
+                pollInterval = setInterval(() => pollJobStatus(activeJobId), 2000);
             }
+        } catch (error) {
+            handleAIFailure(error.message);
+        }
+    }
+
+    async function pollJobStatus(jobId) {
+        try {
+            const response = await fetch(`/api/analysis/status/${jobId}`);
+            const data = await response.json();
+            
+            if (data.status === 'failed') {
+                clearInterval(pollInterval);
+                handleAIFailure(data.error_message || "Generation failed.");
+                return;
+            }
+
+            // Update Progress Bar
+            document.getElementById('ai-step-text').textContent = data.step;
+            document.getElementById('ai-progress-bar').style.width = `${data.progress}%`;
+
+            // Update Backend Heuristics if available
+            if (data.heuristics) {
+                document.getElementById('ui-reading-time').textContent = data.heuristics.reading_time + " Read";
+                
+                const compEl = document.getElementById('ui-complexity');
+                compEl.textContent = data.heuristics.complexity;
+                compEl.className = data.heuristics.complexity === 'Complex' ? 'text-red-600 font-bold' : 
+                                   data.heuristics.complexity === 'Medium' ? 'text-amber-600 font-bold' : 'text-emerald-600 font-bold';
+                
+                const kwContainer = document.getElementById('ui-keywords');
+                kwContainer.innerHTML = data.heuristics.keywords.map(k => `<span class="px-2 py-0.5 bg-slate-100 rounded text-xs border border-slate-200 capitalize">${k}</span>`).join('');
+            }
+
+            if (data.status === 'completed') {
+                clearInterval(pollInterval);
+                fetchFinalResult(jobId);
+            }
+
+        } catch (error) {
+            console.error("Polling error:", error);
+        }
+    }
+
+    async function fetchFinalResult(jobId) {
+        try {
+            const response = await fetch(`/api/analysis/result/${jobId}`);
+            const data = await response.json();
+            if (!response.ok) throw new Error('Failed to fetch result');
 
             populateDashboard(data);
             
-            document.getElementById('loading-state').classList.add('hidden');
-            document.getElementById('error-state').classList.add('hidden');
-            document.getElementById('workspace').classList.remove('hidden');
+            // Hide progress
+            document.getElementById('ai-progress-section').classList.add('hidden');
+            const dot = document.getElementById('ai-status-indicator');
+            dot.className = 'h-2 w-2 rounded-full bg-emerald-500';
+            document.getElementById('ai-status-text').textContent = 'Workspace Ready';
 
         } catch (error) {
-            document.getElementById('loading-state').classList.add('hidden');
-            document.getElementById('workspace').classList.add('hidden');
-            const errState = document.getElementById('error-state');
-            errState.classList.remove('hidden');
-            document.getElementById('error-message').textContent = error.message;
+            handleAIFailure(error.message);
         }
+    }
+
+    function handleAIFailure(msg) {
+        document.getElementById('ai-progress-section').classList.add('hidden');
+        document.getElementById('ai-status-indicator').className = 'h-2 w-2 rounded-full bg-slate-400';
+        document.getElementById('ai-status-text').textContent = 'AI Offline';
+        console.warn("AI Degradation:", msg);
     }
 
     function populateDashboard(data) {
-        // 1. Hero
-        document.getElementById('ui-confidence').textContent = `${data.confidence_score}% Confidence`;
-        document.getElementById('ui-ref').textContent = `REF: ${data.rbi_reference_number}`;
+        // 1. Exec Brief Update
+        const briefContainer = document.getElementById('exec-brief-container');
+        briefContainer.innerHTML = `
+            <div>
+                <h3 class="text-xs font-semibold text-slate-900 mb-1">What Changed</h3>
+                <p class="text-slate-600 text-sm leading-relaxed">${data.executive_brief.what_changed}</p>
+            </div>
+            <div>
+                <h3 class="text-xs font-semibold text-slate-900 mb-1">Why It Matters</h3>
+                <p class="text-slate-600 text-sm leading-relaxed">${data.executive_brief.why_it_matters}</p>
+            </div>
+            <div>
+                <h3 class="text-xs font-semibold text-slate-900 mb-1">Business Impact</h3>
+                <p class="text-slate-600 text-sm leading-relaxed">${data.executive_brief.business_impact}</p>
+            </div>
+        `;
+
+        // Reveal AI Sections
+        document.getElementById('ai-results-container').classList.remove('hidden');
+        document.getElementById('ai-decision-center').classList.remove('hidden');
+
+        // Populate Decision Center
+        const dc = data.decision_center;
+        const actEl = document.getElementById('dc-act');
+        actEl.textContent = dc.should_we_act;
+        if (dc.should_we_act.toUpperCase() === 'YES') {
+            actEl.className = 'px-2 py-1 bg-red-100 text-red-800 text-xs font-bold rounded border border-red-200';
+        }
+
+        const urgColor = dc.urgency.toUpperCase() === 'HIGH' ? 'text-red-600' : dc.urgency.toUpperCase() === 'MEDIUM' ? 'text-amber-600' : 'text-slate-600';
+        document.getElementById('dc-urgency').textContent = dc.urgency.toUpperCase();
+        document.getElementById('dc-urgency').className = `text-sm font-bold ${urgColor}`;
+
+        document.getElementById('dc-biz').textContent = dc.business_impact;
+        document.getElementById('dc-fin').textContent = dc.financial_exposure;
+
+        const getIcon = (val) => val ? '<svg class="w-4 h-4 text-red-500" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd"></path></svg>' : 
+                                       '<svg class="w-4 h-4 text-slate-300" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clip-rule="evenodd"></path></svg>';
         
-        const generatedDate = new Date(data.generated_at).toLocaleString();
-        document.getElementById('ui-generated-at').textContent = generatedDate;
+        document.getElementById('dc-policy-icon').innerHTML = getIcon(dc.requires_policy_update);
+        document.getElementById('dc-legal-icon').innerHTML = getIcon(dc.requires_legal_review);
+        document.getElementById('dc-cust-icon').innerHTML = getIcon(dc.requires_customer_communication);
 
-        // 2. Exec Brief
-        document.getElementById('ui-what-changed').textContent = data.executive_brief.what_changed;
-        document.getElementById('ui-why-matters').textContent = data.executive_brief.why_it_matters;
-        document.getElementById('ui-biz-impact').textContent = data.executive_brief.business_impact;
+        document.getElementById('dc-work').textContent = dc.estimated_internal_work;
+        document.getElementById('dc-owner').textContent = dc.recommended_owner;
 
-        // 3. Applicability
-        globalApplicability = data.applicability;
-        renderApplicability(document.getElementById('company-selector').value);
-
-        // 4. Impact Scores
-        document.getElementById('ui-score-overall').textContent = data.impact_scores.overall;
-        
-        const pbars = document.getElementById('ui-progress-bars');
-        pbars.innerHTML = '';
-        const metrics = [
-            { label: 'Business Risk', val: data.impact_scores.business_risk, color: 'bg-red-500' },
-            { label: 'Legal Risk', val: data.impact_scores.legal_risk, color: 'bg-orange-500' },
-            { label: 'Ops Complexity', val: data.impact_scores.operational_complexity, color: 'bg-amber-500' },
-            { label: 'Implement. Effort', val: data.impact_scores.implementation_effort, color: 'bg-blue-500' },
-            { label: 'Financial Exp.', val: data.impact_scores.financial_exposure, color: 'bg-rose-500' }
-        ];
-        metrics.forEach(m => {
-            const pct = m.val * 10;
-            pbars.innerHTML += `
-                <div>
-                    <div class="flex justify-between text-xs mb-1">
-                        <span class="text-slate-400">${m.label}</span>
-                        <span class="text-slate-300 font-medium">${m.val}/10</span>
-                    </div>
-                    <div class="w-full bg-slate-800 rounded-full h-1.5">
-                        <div class="${m.color} h-1.5 rounded-full" style="width: ${pct}%"></div>
-                    </div>
-                </div>
-            `;
-        });
-
-        // 5. Departments
+        // Departments
         const depts = document.getElementById('ui-departments');
         depts.innerHTML = '';
         data.department_impacts.forEach(d => {
-            const badgeColor = d.impact_level.toLowerCase() === 'high' ? 'bg-red-500/20 text-red-400' :
-                               d.impact_level.toLowerCase() === 'medium' ? 'bg-amber-500/20 text-amber-400' : 'bg-emerald-500/20 text-emerald-400';
-            
-            const actionsHTML = d.required_actions.map(a => `<li class="flex items-start gap-1.5"><span class="text-brand-500 mt-0.5">•</span><span>${a}</span></li>`).join('');
-
-            depts.innerHTML += `
-                <div class="bg-glass border border-glassBorder rounded-xl p-4 hover:border-brand-500/50 transition">
-                    <div class="flex justify-between items-center mb-3">
-                        <h3 class="font-bold text-white">${d.department}</h3>
-                        <span class="px-2 py-0.5 rounded text-xs font-semibold ${badgeColor}">${d.impact_level}</span>
-                    </div>
-                    <ul class="text-xs text-slate-300 space-y-1.5 mb-3">${actionsHTML}</ul>
-                    <div class="text-xs font-medium text-slate-500 flex items-center gap-1.5 border-t border-glassBorder pt-2">
-                        <svg xmlns="http://www.w3.org/2000/svg" class="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
-                        ETA: ${d.estimated_time}
-                    </div>
+            const badgeColor = d.impact_level.toLowerCase() === 'high' ? 'bg-red-100 text-red-700 border-red-200' :
+                               d.impact_level.toLowerCase() === 'medium' ? 'bg-amber-100 text-amber-700 border-amber-200' : 'bg-slate-100 text-slate-700 border-slate-200';
+            const actionsHTML = d.required_actions.map(a => `<li class="flex items-start gap-1.5"><span class="text-slate-400 mt-0.5">•</span><span>${a}</span></li>`).join('');
+            depts.innerHTML += `<div class="p-4 border border-slate-200 rounded-lg bg-slate-50">
+                <div class="flex justify-between items-center mb-3">
+                    <h3 class="font-bold text-slate-800 text-sm">${d.department}</h3>
+                    <span class="px-2 py-0.5 rounded border text-[10px] font-bold uppercase">${d.impact_level}</span>
                 </div>
-            `;
+                <ul class="text-xs text-slate-600 space-y-1.5">${actionsHTML}</ul>
+            </div>`;
         });
 
-        // 6. Checklist
+        // Checklist
         const check = document.getElementById('ui-checklist');
         check.innerHTML = '';
         data.checklist.forEach(c => {
-            const pBadge = c.priority.toLowerCase() === 'high' ? 'text-red-400 bg-red-400/10' : 'text-amber-400 bg-amber-400/10';
-            check.innerHTML += `
-                <li class="p-4 flex gap-4 hover:bg-white/5 transition">
-                    <div class="mt-0.5 text-slate-500"><svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" /></svg></div>
-                    <div class="flex-1">
-                        <p class="text-sm text-slate-200 font-medium mb-1">${c.task}</p>
-                        <div class="flex gap-3 text-xs">
-                            <span class="text-slate-500">Owner: <span class="text-slate-300">${c.owner}</span></span>
-                            <span class="text-slate-500">Effort: <span class="text-slate-300">${c.effort}</span></span>
-                            <span class="px-1.5 rounded text-[10px] uppercase font-bold tracking-wider ${pBadge}">${c.priority}</span>
-                        </div>
-                    </div>
-                </li>
-            `;
-        });
-
-        // 7. Roadmap
-        const rmap = document.getElementById('ui-roadmap');
-        rmap.innerHTML = '';
-        const phases = [
-            { id: 'today', title: 'Immediate (Today)' },
-            { id: 'day_3', title: 'Within 3 Days' },
-            { id: 'day_7', title: 'Within 7 Days' },
-            { id: 'day_30', title: 'Within 30 Days' }
-        ];
-
-        phases.forEach((phase, index) => {
-            const milestones = data.roadmap[phase.id];
-            if(!milestones || milestones.length === 0) return;
-
-            let mHtml = '';
-            milestones.forEach(m => {
-                mHtml += `
-                    <div class="bg-slate-900 border border-slate-700 rounded-lg p-3">
-                        <p class="text-sm text-white font-medium mb-2">${m.task}</p>
-                        <div class="flex justify-between text-xs">
-                            <span class="text-slate-400">👤 ${m.owner}</span>
-                            <span class="text-red-400">⚠️ ${m.risk}</span>
-                        </div>
-                    </div>
-                `;
-            });
-
-            rmap.innerHTML += `
-                <div class="relative flex items-center justify-between md:justify-normal md:odd:flex-row-reverse group is-active">
-                    <div class="flex items-center justify-center w-5 h-5 rounded-full border-2 border-brand-500 bg-slate-900 text-brand-500 shadow shrink-0 md:order-1 md:group-odd:-translate-x-1/2 md:group-even:translate-x-1/2"></div>
-                    <div class="w-[calc(100%-2rem)] md:w-[calc(50%-1.5rem)] p-4 rounded-xl border border-glassBorder bg-glass">
-                        <div class="flex items-center justify-between mb-3">
-                            <h4 class="font-bold text-brand-400 text-sm">${phase.title}</h4>
-                        </div>
-                        <div class="space-y-2">${mHtml}</div>
+            check.innerHTML += `<li class="py-4 flex gap-4">
+                <div class="mt-0.5"><input type="checkbox" class="w-4 h-4 text-brand-600 bg-slate-100 border-slate-300 rounded focus:ring-brand-500"></div>
+                <div class="flex-1">
+                    <p class="text-sm text-slate-800 font-medium mb-1">${c.task}</p>
+                    <div class="flex gap-4 text-[11px] font-medium text-slate-500 uppercase tracking-wide">
+                        <span>Owner: <span class="text-slate-700">${c.owner}</span></span>
+                        <span>Effort: <span class="text-slate-700">${c.effort}</span></span>
+                        <span class="${c.priority.toLowerCase() === 'high' ? 'text-red-600' : 'text-amber-600'}">${c.priority}</span>
                     </div>
                 </div>
-            `;
+            </li>`;
         });
-
-        // 8. Key Questions
-        const qs = document.getElementById('ui-questions');
-        qs.innerHTML = '';
-        data.key_questions.forEach(q => {
-            qs.innerHTML += `
-                <li class="flex items-start gap-2 text-sm text-slate-300 bg-slate-900/50 p-3 rounded-lg border border-slate-800">
-                    <span class="text-brand-500 font-bold">Q.</span> ${q}
-                </li>
-            `;
-        });
-
-        // 9. Board Brief
-        document.getElementById('ui-board-urgency').textContent = data.board_brief.urgency;
-        const urgColor = data.board_brief.urgency.toLowerCase() === 'immediate' ? 'text-red-400' : 'text-amber-400';
-        document.getElementById('ui-board-urgency').className = `text-sm font-bold ${urgColor}`;
-        
-        document.getElementById('ui-board-risk').textContent = data.board_brief.business_risk;
-        document.getElementById('ui-board-fin').textContent = data.board_brief.financial_impact;
-        document.getElementById('ui-board-rec').textContent = data.board_brief.recommendation;
-    }
-
-    function renderApplicability(typeKey) {
-        const resultDiv = document.getElementById('applicability-result');
-        const badge = document.getElementById('app-status-badge');
-        const reason = document.getElementById('app-reason');
-
-        // Normalise key since AI might generate slightly different casing
-        const key = Object.keys(globalApplicability).find(k => k.toLowerCase() === typeKey.toLowerCase());
-        const data = key ? globalApplicability[key] : { status: 'UNKNOWN', reason: 'No specific data generated for this entity type.' };
-
-        reason.textContent = data.reason;
-        badge.textContent = data.status;
-
-        resultDiv.className = 'rounded-xl p-4 border transition-all mt-4 ';
-        if (data.status === 'YES') {
-            resultDiv.classList.add('bg-red-500/10', 'border-red-500/30');
-            badge.className = 'px-2 py-0.5 rounded text-xs font-bold bg-red-500 text-white';
-        } else if (data.status === 'PARTIALLY') {
-            resultDiv.classList.add('bg-amber-500/10', 'border-amber-500/30');
-            badge.className = 'px-2 py-0.5 rounded text-xs font-bold bg-amber-500 text-amber-950';
-        } else {
-            resultDiv.classList.add('bg-emerald-500/10', 'border-emerald-500/30');
-            badge.className = 'px-2 py-0.5 rounded text-xs font-bold bg-emerald-500 text-white';
-        }
     }
   </script>
 </body>

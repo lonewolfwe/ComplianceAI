@@ -86,11 +86,16 @@ Required JSON Structure:
     "<Intelligent question management should ask 1>",
     "<Intelligent question management should ask 2>"
   ],
-  "board_brief": {{
-    "business_risk": "<1 sentence risk summary>",
-    "financial_impact": "<1 sentence financial impact>",
-    "urgency": "<Immediate, High, Medium, Low>",
-    "recommendation": "<1 sentence recommendation to the board>"
+  "decision_center": {{
+    "should_we_act": "<YES or NO>",
+    "urgency": "<HIGH, MEDIUM, LOW, or NONE>",
+    "business_impact": "<HIGH, MEDIUM, LOW, or NONE>",
+    "financial_exposure": "<HIGH, MEDIUM, LOW, or NONE>",
+    "requires_policy_update": <true or false>,
+    "requires_legal_review": <true or false>,
+    "requires_customer_communication": <true or false>,
+    "estimated_internal_work": "<e.g., 4 Hours, 2 Days>",
+    "recommended_owner": "<e.g., Compliance Head, CTO, CFO>"
   }}
 }}
 
