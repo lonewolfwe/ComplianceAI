@@ -1,0 +1,483 @@
+<!DOCTYPE html>
+<html lang="en" class="scroll-smooth">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>{{ meta.title }} | ComplianceAI Copilot</title>
+  
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet" />
+  
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          fontFamily: { sans: ['Inter', 'sans-serif'] },
+          colors: {
+            glass: 'rgba(255, 255, 255, 0.03)',
+            glassBorder: 'rgba(255, 255, 255, 0.08)',
+            brand: { 400: '#818cf8', 500: '#6366f1', 600: '#4f46e5' }
+          },
+          animation: {
+            'fade-in': 'fadeIn 0.5s ease-out',
+            'pulse-slow': 'pulse 3s cubic-bezier(0.4, 0, 0.6, 1) infinite',
+          },
+          keyframes: {
+            fadeIn: {
+              '0%': { opacity: '0', transform: 'translateY(10px)' },
+              '100%': { opacity: '1', transform: 'translateY(0)' },
+            }
+          }
+        }
+      }
+    }
+  </script>
+</head>
+<body class="bg-[#0b0f19] text-slate-300 font-sans min-h-screen antialiased selection:bg-brand-500/30 selection:text-brand-100">
+
+  <!-- TOP NAV -->
+  <nav class="border-b border-glassBorder bg-[#0b0f19]/80 backdrop-blur-md sticky top-0 z-50">
+    <div class="max-w-7xl mx-auto px-6 h-16 flex items-center justify-between">
+      <a href="/" class="flex items-center gap-2 group">
+        <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 text-slate-400 group-hover:text-brand-400 transition" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18" />
+        </svg>
+        <span class="text-sm font-medium text-slate-400 group-hover:text-white transition">Back to Hub</span>
+      </a>
+      <div class="flex items-center gap-3">
+        <div class="h-2 w-2 rounded-full bg-emerald-500 animate-pulse-slow"></div>
+        <span class="text-xs font-semibold tracking-widest text-emerald-500 uppercase">Copilot Active</span>
+      </div>
+    </div>
+  </nav>
+
+  <main class="max-w-7xl mx-auto px-6 py-10 relative">
+    
+    <!-- INITIAL LOADING STATE -->
+    <div id="loading-state" class="flex flex-col items-center justify-center min-h-[60vh] animate-fade-in">
+        <div class="relative w-24 h-24 mb-8">
+            <div class="absolute inset-0 rounded-full border-t-2 border-brand-500 animate-spin"></div>
+            <div class="absolute inset-2 rounded-full border-t-2 border-brand-400 animate-spin" style="animation-direction: reverse; animation-duration: 1.5s;"></div>
+            <div class="absolute inset-0 flex items-center justify-center text-brand-400">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-8 w-8" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M13 10V3L4 14h7v7l9-11h-7z" />
+                </svg>
+            </div>
+        </div>
+        <h2 class="text-2xl font-bold text-white mb-2">Analyzing Regulatory Impact</h2>
+        <p class="text-slate-500 text-sm max-w-md text-center">Copilot is reading the circular, determining applicability, mapping risks, and generating compliance roadmaps.</p>
+    </div>
+
+    <!-- ERROR STATE -->
+    <div id="error-state" class="hidden flex flex-col items-center justify-center min-h-[50vh] animate-fade-in">
+        <svg xmlns="http://www.w3.org/2000/svg" class="h-16 w-16 text-red-500 mb-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+        </svg>
+        <h2 class="text-xl font-bold text-white mb-2">Analysis Failed</h2>
+        <p id="error-message" class="text-red-400/80 text-sm mb-6"></p>
+        <button onclick="window.location.reload()" class="bg-glass border border-glassBorder hover:bg-white/10 px-4 py-2 rounded-lg text-sm text-white transition">Try Again</button>
+    </div>
+
+    <!-- COPILOT WORKSPACE (HIDDEN INITIALLY) -->
+    <div id="workspace" class="hidden space-y-8 pb-20 animate-fade-in">
+        
+        <!-- 1. HERO SECTION -->
+        <header class="mb-12">
+            <div class="flex flex-wrap gap-3 mb-4">
+                <span class="px-3 py-1 bg-brand-500/10 text-brand-400 border border-brand-500/20 rounded-full text-xs font-semibold tracking-wide flex items-center gap-1.5">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-3.5 w-3.5" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd" /></svg>
+                    AI Generated
+                </span>
+                <span id="ui-confidence" class="px-3 py-1 bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 rounded-full text-xs font-semibold tracking-wide">
+                    95% Confidence
+                </span>
+                <span id="ui-ref" class="px-3 py-1 bg-glass border border-glassBorder text-slate-400 rounded-full text-xs font-medium">
+                    REF: RBI/2026/123
+                </span>
+            </div>
+            
+            <h1 class="text-3xl md:text-5xl font-extrabold text-white leading-tight mb-4 tracking-tight" style="text-wrap: balance;">
+                {{ meta.title }}
+            </h1>
+            
+            <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-glassBorder pb-8">
+                <div class="text-sm text-slate-500 flex items-center gap-4">
+                    <span class="flex items-center gap-1.5"><svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" /></svg> {{ meta.date }}</span>
+                    <span class="flex items-center gap-1.5"><svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" /></svg> Generated: <span id="ui-generated-at"></span></span>
+                </div>
+                
+                <div class="flex gap-3">
+                    <button id="btn-regenerate" class="px-4 py-2 bg-glass border border-glassBorder hover:bg-white/5 rounded-lg text-sm font-medium transition flex items-center gap-2">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" /></svg>
+                        Regenerate
+                    </button>
+                    <a href="{{ meta.pdf_url }}" target="_blank" class="px-4 py-2 bg-brand-600 hover:bg-brand-500 shadow-lg shadow-brand-500/20 text-white rounded-lg text-sm font-medium transition flex items-center gap-2">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-3-3m3 3l3-3M3 17V7a2 2 0 012-2h6l2 2h6a2 2 0 012 2v8a2 2 0 01-2 2H5a2 2 0 01-2-2z" /></svg>
+                        Original Document
+                    </a>
+                </div>
+            </div>
+        </header>
+
+        <!-- TWO COLUMN LAYOUT -->
+        <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
+            
+            <!-- LEFT MAIN COLUMN -->
+            <div class="lg:col-span-2 space-y-8">
+                
+                <!-- 2. EXECUTIVE BRIEF -->
+                <section class="bg-glass border border-glassBorder rounded-2xl p-6 relative overflow-hidden">
+                    <div class="absolute top-0 right-0 p-4 opacity-10">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-24 w-24" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" /></svg>
+                    </div>
+                    <div class="flex items-center justify-between mb-5">
+                        <h2 class="text-lg font-bold text-white flex items-center gap-2">
+                            <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 text-brand-400" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M18 3a1 1 0 00-1.447-.894L8.763 6H5a3 3 0 000 6h.28l1.771 5.316A1 1 0 008 18h1a1 1 0 001-1v-4.382l6.553 3.276A1 1 0 0018 15V3z" clip-rule="evenodd" /></svg>
+                            Executive Brief
+                        </h2>
+                        <span class="text-xs text-slate-500">45s Read</span>
+                    </div>
+                    
+                    <div class="space-y-4 relative z-10">
+                        <div>
+                            <h3 class="text-xs font-semibold text-brand-400 uppercase tracking-wider mb-1">What Changed</h3>
+                            <p id="ui-what-changed" class="text-slate-300 leading-relaxed"></p>
+                        </div>
+                        <div>
+                            <h3 class="text-xs font-semibold text-brand-400 uppercase tracking-wider mb-1">Why It Matters</h3>
+                            <p id="ui-why-matters" class="text-slate-300 leading-relaxed"></p>
+                        </div>
+                        <div>
+                            <h3 class="text-xs font-semibold text-brand-400 uppercase tracking-wider mb-1">Business Impact</h3>
+                            <p id="ui-biz-impact" class="text-slate-300 leading-relaxed"></p>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- 5. DEPARTMENT IMPACT -->
+                <section>
+                    <h2 class="text-lg font-bold text-white mb-4">Department Impact Analysis</h2>
+                    <div id="ui-departments" class="grid sm:grid-cols-2 gap-4">
+                        <!-- Populated via JS -->
+                    </div>
+                </section>
+
+                <!-- 7. IMPLEMENTATION ROADMAP -->
+                <section>
+                    <h2 class="text-lg font-bold text-white mb-4">AI Implementation Roadmap</h2>
+                    <div class="bg-glass border border-glassBorder rounded-2xl p-6">
+                        <div id="ui-roadmap" class="space-y-8 relative before:absolute before:inset-0 before:ml-2 before:-translate-x-px md:before:mx-auto md:before:translate-x-0 before:h-full before:w-0.5 before:bg-gradient-to-b before:from-transparent before:via-slate-700 before:to-transparent">
+                            <!-- Populated via JS -->
+                        </div>
+                    </div>
+                </section>
+
+                <!-- 6. ACTION CHECKLIST -->
+                <section>
+                    <h2 class="text-lg font-bold text-white mb-4">Compliance Action Checklist</h2>
+                    <div class="bg-glass border border-glassBorder rounded-2xl overflow-hidden">
+                        <ul id="ui-checklist" class="divide-y divide-glassBorder">
+                            <!-- Populated via JS -->
+                        </ul>
+                    </div>
+                </section>
+
+            </div>
+
+            <!-- RIGHT SIDEBAR -->
+            <div class="space-y-8">
+                
+                <!-- 9. EXECUTIVE BOARD BRIEF -->
+                <section class="bg-gradient-to-br from-brand-900/40 to-slate-900 border border-brand-500/30 rounded-2xl p-6 shadow-lg shadow-brand-900/20">
+                    <h2 class="text-sm font-bold text-brand-300 uppercase tracking-wider mb-4 flex items-center gap-2">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" viewBox="0 0 20 20" fill="currentColor"><path d="M10 12a2 2 0 100-4 2 2 0 000 4z" /><path fill-rule="evenodd" d="M.458 10C1.732 5.943 5.522 3 10 3s8.268 2.943 9.542 7c-1.274 4.057-5.064 7-9.542 7S1.732 14.057.458 10zM14 10a4 4 0 11-8 0 4 4 0 018 0z" clip-rule="evenodd" /></svg>
+                        Board Briefing
+                    </h2>
+                    <div class="space-y-3">
+                        <div><span class="text-xs text-slate-400 block mb-0.5">Urgency</span><span id="ui-board-urgency" class="text-sm font-medium text-white"></span></div>
+                        <div><span class="text-xs text-slate-400 block mb-0.5">Risk</span><span id="ui-board-risk" class="text-sm text-slate-300"></span></div>
+                        <div><span class="text-xs text-slate-400 block mb-0.5">Financial</span><span id="ui-board-fin" class="text-sm text-slate-300"></span></div>
+                        <div class="pt-2 border-t border-brand-500/20"><span class="text-xs text-brand-400 block mb-0.5 font-semibold">Recommendation</span><span id="ui-board-rec" class="text-sm text-white font-medium"></span></div>
+                    </div>
+                </section>
+
+                <!-- 3. APPLICABILITY CHECKER -->
+                <section class="bg-glass border border-glassBorder rounded-2xl p-6">
+                    <h2 class="text-sm font-bold text-white uppercase tracking-wider mb-4">Applicability Checker</h2>
+                    <label class="block text-xs text-slate-400 mb-2">Select your company type:</label>
+                    <select id="company-selector" class="w-full bg-slate-900 border border-slate-700 text-sm text-white rounded-lg px-3 py-2 focus:ring-2 focus:ring-brand-500 outline-none mb-4">
+                        <option value="NBFC">NBFC</option>
+                        <option value="Digital Lender">Digital Lender</option>
+                        <option value="Payment Aggregator">Payment Aggregator</option>
+                        <option value="Payment Bank">Payment Bank</option>
+                        <option value="Small Finance Bank">Small Finance Bank</option>
+                        <option value="Co-operative Bank">Co-operative Bank</option>
+                        <option value="FinTech Startup">FinTech Startup</option>
+                    </select>
+
+                    <div id="applicability-result" class="rounded-xl p-4 border transition-all">
+                        <div class="flex items-center justify-between mb-2">
+                            <span class="text-xs text-slate-400 font-medium uppercase">Applies to you?</span>
+                            <span id="app-status-badge" class="px-2 py-0.5 rounded text-xs font-bold"></span>
+                        </div>
+                        <p id="app-reason" class="text-sm text-slate-300"></p>
+                    </div>
+                </section>
+
+                <!-- 4. IMPACT SCORES -->
+                <section class="bg-glass border border-glassBorder rounded-2xl p-6">
+                    <div class="flex items-end justify-between mb-6">
+                        <h2 class="text-sm font-bold text-white uppercase tracking-wider">Impact Scores</h2>
+                        <div class="text-right">
+                            <span id="ui-score-overall" class="text-3xl font-black text-brand-400 leading-none"></span><span class="text-slate-500">/10</span>
+                        </div>
+                    </div>
+                    
+                    <div class="space-y-4" id="ui-progress-bars">
+                        <!-- Populated via JS -->
+                    </div>
+                </section>
+
+                <!-- 8. KEY QUESTIONS -->
+                <section class="bg-glass border border-glassBorder rounded-2xl p-6">
+                    <h2 class="text-sm font-bold text-white uppercase tracking-wider mb-4">Key Questions for MGT</h2>
+                    <ul id="ui-questions" class="space-y-3">
+                        <!-- Populated via JS -->
+                    </ul>
+                </section>
+
+            </div>
+        </div>
+    </div>
+  </main>
+
+  <script>
+    const metaPayload = {
+        title: "{{ meta.title }}",
+        date: "{{ meta.date }}",
+        pdf_url: "{{ meta.pdf_url }}",
+        hash: "{{ meta.hash }}"
+    };
+
+    let globalApplicability = {};
+
+    document.addEventListener('DOMContentLoaded', () => {
+        fetchWorkspaceData();
+
+        document.getElementById('company-selector').addEventListener('change', (e) => {
+            renderApplicability(e.target.value);
+        });
+
+        document.getElementById('btn-regenerate').addEventListener('click', async () => {
+            if(!confirm("Are you sure you want to regenerate this analysis? This will overwrite the cache.")) return;
+            document.getElementById('workspace').classList.add('hidden');
+            document.getElementById('loading-state').classList.remove('hidden');
+            await fetchWorkspaceData(true);
+        });
+    });
+
+    async function fetchWorkspaceData(forceRegenerate = false) {
+        const endpoint = forceRegenerate ? '/api/regenerate' : '/api/summarize';
+        try {
+            const response = await fetch(endpoint, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(metaPayload)
+            });
+            const data = await response.json();
+            
+            if (!response.ok || data.summary_error) {
+                throw new Error(data.error_message || data.detail || 'Analysis failed to generate.');
+            }
+
+            populateDashboard(data);
+            
+            document.getElementById('loading-state').classList.add('hidden');
+            document.getElementById('error-state').classList.add('hidden');
+            document.getElementById('workspace').classList.remove('hidden');
+
+        } catch (error) {
+            document.getElementById('loading-state').classList.add('hidden');
+            document.getElementById('workspace').classList.add('hidden');
+            const errState = document.getElementById('error-state');
+            errState.classList.remove('hidden');
+            document.getElementById('error-message').textContent = error.message;
+        }
+    }
+
+    function populateDashboard(data) {
+        // 1. Hero
+        document.getElementById('ui-confidence').textContent = `${data.confidence_score}% Confidence`;
+        document.getElementById('ui-ref').textContent = `REF: ${data.rbi_reference_number}`;
+        
+        const generatedDate = new Date(data.generated_at).toLocaleString();
+        document.getElementById('ui-generated-at').textContent = generatedDate;
+
+        // 2. Exec Brief
+        document.getElementById('ui-what-changed').textContent = data.executive_brief.what_changed;
+        document.getElementById('ui-why-matters').textContent = data.executive_brief.why_it_matters;
+        document.getElementById('ui-biz-impact').textContent = data.executive_brief.business_impact;
+
+        // 3. Applicability
+        globalApplicability = data.applicability;
+        renderApplicability(document.getElementById('company-selector').value);
+
+        // 4. Impact Scores
+        document.getElementById('ui-score-overall').textContent = data.impact_scores.overall;
+        
+        const pbars = document.getElementById('ui-progress-bars');
+        pbars.innerHTML = '';
+        const metrics = [
+            { label: 'Business Risk', val: data.impact_scores.business_risk, color: 'bg-red-500' },
+            { label: 'Legal Risk', val: data.impact_scores.legal_risk, color: 'bg-orange-500' },
+            { label: 'Ops Complexity', val: data.impact_scores.operational_complexity, color: 'bg-amber-500' },
+            { label: 'Implement. Effort', val: data.impact_scores.implementation_effort, color: 'bg-blue-500' },
+            { label: 'Financial Exp.', val: data.impact_scores.financial_exposure, color: 'bg-rose-500' }
+        ];
+        metrics.forEach(m => {
+            const pct = m.val * 10;
+            pbars.innerHTML += `
+                <div>
+                    <div class="flex justify-between text-xs mb-1">
+                        <span class="text-slate-400">${m.label}</span>
+                        <span class="text-slate-300 font-medium">${m.val}/10</span>
+                    </div>
+                    <div class="w-full bg-slate-800 rounded-full h-1.5">
+                        <div class="${m.color} h-1.5 rounded-full" style="width: ${pct}%"></div>
+                    </div>
+                </div>
+            `;
+        });
+
+        // 5. Departments
+        const depts = document.getElementById('ui-departments');
+        depts.innerHTML = '';
+        data.department_impacts.forEach(d => {
+            const badgeColor = d.impact_level.toLowerCase() === 'high' ? 'bg-red-500/20 text-red-400' :
+                               d.impact_level.toLowerCase() === 'medium' ? 'bg-amber-500/20 text-amber-400' : 'bg-emerald-500/20 text-emerald-400';
+            
+            const actionsHTML = d.required_actions.map(a => `<li class="flex items-start gap-1.5"><span class="text-brand-500 mt-0.5">•</span><span>${a}</span></li>`).join('');
+
+            depts.innerHTML += `
+                <div class="bg-glass border border-glassBorder rounded-xl p-4 hover:border-brand-500/50 transition">
+                    <div class="flex justify-between items-center mb-3">
+                        <h3 class="font-bold text-white">${d.department}</h3>
+                        <span class="px-2 py-0.5 rounded text-xs font-semibold ${badgeColor}">${d.impact_level}</span>
+                    </div>
+                    <ul class="text-xs text-slate-300 space-y-1.5 mb-3">${actionsHTML}</ul>
+                    <div class="text-xs font-medium text-slate-500 flex items-center gap-1.5 border-t border-glassBorder pt-2">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+                        ETA: ${d.estimated_time}
+                    </div>
+                </div>
+            `;
+        });
+
+        // 6. Checklist
+        const check = document.getElementById('ui-checklist');
+        check.innerHTML = '';
+        data.checklist.forEach(c => {
+            const pBadge = c.priority.toLowerCase() === 'high' ? 'text-red-400 bg-red-400/10' : 'text-amber-400 bg-amber-400/10';
+            check.innerHTML += `
+                <li class="p-4 flex gap-4 hover:bg-white/5 transition">
+                    <div class="mt-0.5 text-slate-500"><svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" /></svg></div>
+                    <div class="flex-1">
+                        <p class="text-sm text-slate-200 font-medium mb-1">${c.task}</p>
+                        <div class="flex gap-3 text-xs">
+                            <span class="text-slate-500">Owner: <span class="text-slate-300">${c.owner}</span></span>
+                            <span class="text-slate-500">Effort: <span class="text-slate-300">${c.effort}</span></span>
+                            <span class="px-1.5 rounded text-[10px] uppercase font-bold tracking-wider ${pBadge}">${c.priority}</span>
+                        </div>
+                    </div>
+                </li>
+            `;
+        });
+
+        // 7. Roadmap
+        const rmap = document.getElementById('ui-roadmap');
+        rmap.innerHTML = '';
+        const phases = [
+            { id: 'today', title: 'Immediate (Today)' },
+            { id: 'day_3', title: 'Within 3 Days' },
+            { id: 'day_7', title: 'Within 7 Days' },
+            { id: 'day_30', title: 'Within 30 Days' }
+        ];
+
+        phases.forEach((phase, index) => {
+            const milestones = data.roadmap[phase.id];
+            if(!milestones || milestones.length === 0) return;
+
+            let mHtml = '';
+            milestones.forEach(m => {
+                mHtml += `
+                    <div class="bg-slate-900 border border-slate-700 rounded-lg p-3">
+                        <p class="text-sm text-white font-medium mb-2">${m.task}</p>
+                        <div class="flex justify-between text-xs">
+                            <span class="text-slate-400">👤 ${m.owner}</span>
+                            <span class="text-red-400">⚠️ ${m.risk}</span>
+                        </div>
+                    </div>
+                `;
+            });
+
+            rmap.innerHTML += `
+                <div class="relative flex items-center justify-between md:justify-normal md:odd:flex-row-reverse group is-active">
+                    <div class="flex items-center justify-center w-5 h-5 rounded-full border-2 border-brand-500 bg-slate-900 text-brand-500 shadow shrink-0 md:order-1 md:group-odd:-translate-x-1/2 md:group-even:translate-x-1/2"></div>
+                    <div class="w-[calc(100%-2rem)] md:w-[calc(50%-1.5rem)] p-4 rounded-xl border border-glassBorder bg-glass">
+                        <div class="flex items-center justify-between mb-3">
+                            <h4 class="font-bold text-brand-400 text-sm">${phase.title}</h4>
+                        </div>
+                        <div class="space-y-2">${mHtml}</div>
+                    </div>
+                </div>
+            `;
+        });
+
+        // 8. Key Questions
+        const qs = document.getElementById('ui-questions');
+        qs.innerHTML = '';
+        data.key_questions.forEach(q => {
+            qs.innerHTML += `
+                <li class="flex items-start gap-2 text-sm text-slate-300 bg-slate-900/50 p-3 rounded-lg border border-slate-800">
+                    <span class="text-brand-500 font-bold">Q.</span> ${q}
+                </li>
+            `;
+        });
+
+        // 9. Board Brief
+        document.getElementById('ui-board-urgency').textContent = data.board_brief.urgency;
+        const urgColor = data.board_brief.urgency.toLowerCase() === 'immediate' ? 'text-red-400' : 'text-amber-400';
+        document.getElementById('ui-board-urgency').className = `text-sm font-bold ${urgColor}`;
+        
+        document.getElementById('ui-board-risk').textContent = data.board_brief.business_risk;
+        document.getElementById('ui-board-fin').textContent = data.board_brief.financial_impact;
+        document.getElementById('ui-board-rec').textContent = data.board_brief.recommendation;
+    }
+
+    function renderApplicability(typeKey) {
+        const resultDiv = document.getElementById('applicability-result');
+        const badge = document.getElementById('app-status-badge');
+        const reason = document.getElementById('app-reason');
+
+        // Normalise key since AI might generate slightly different casing
+        const key = Object.keys(globalApplicability).find(k => k.toLowerCase() === typeKey.toLowerCase());
+        const data = key ? globalApplicability[key] : { status: 'UNKNOWN', reason: 'No specific data generated for this entity type.' };
+
+        reason.textContent = data.reason;
+        badge.textContent = data.status;
+
+        resultDiv.className = 'rounded-xl p-4 border transition-all mt-4 ';
+        if (data.status === 'YES') {
+            resultDiv.classList.add('bg-red-500/10', 'border-red-500/30');
+            badge.className = 'px-2 py-0.5 rounded text-xs font-bold bg-red-500 text-white';
+        } else if (data.status === 'PARTIALLY') {
+            resultDiv.classList.add('bg-amber-500/10', 'border-amber-500/30');
+            badge.className = 'px-2 py-0.5 rounded text-xs font-bold bg-amber-500 text-amber-950';
+        } else {
+            resultDiv.classList.add('bg-emerald-500/10', 'border-emerald-500/30');
+            badge.className = 'px-2 py-0.5 rounded text-xs font-bold bg-emerald-500 text-white';
+        }
+    }
+  </script>
+</body>
+</html>

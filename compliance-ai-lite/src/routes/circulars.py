@@ -68,6 +68,25 @@ def list_circulars(
     return circulars
 
 
+@router.get("/circular/{hash}", response_class=HTMLResponse)
+def circular_detail(
+    hash: str,
+    request: Request,
+    circular_service: CircularService = Depends(get_circular_service),
+) -> HTMLResponse:
+    """Serves the new Premium SaaS Copilot detail page."""
+    # Try to find the circular meta in the memory cache
+    metas = circular_service.get_latest_metadata()
+    meta = next((m for m in metas if m.hash == hash), None)
+    
+    if not meta:
+        raise HTTPException(status_code=404, detail="Circular not found in recent index.")
+
+    return templates.TemplateResponse(
+        "detail.html",
+        {"request": request, "meta": meta},
+    )
+
 @router.post(
     "/api/summarize",
     response_model=CircularSummary,
@@ -85,6 +104,25 @@ def summarize_circular(
         return circular_service.get_or_generate_summary(meta)
     except Exception as exc:
         logger.error("Failed to summarize circular %s: %s", meta.hash, exc, exc_info=True)
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="An error occurred while analyzing the circular."
+        )
+
+@router.post(
+    "/api/regenerate",
+    response_model=CircularSummary,
+)
+def regenerate_circular(
+    meta: CircularMeta,
+    circular_service: CircularService = Depends(get_circular_service),
+) -> CircularSummary:
+    """Force regenerate the AI summary, overwriting the cache."""
+    logger.info("POST /api/regenerate — Forcing AI regeneration for %s", meta.hash)
+    try:
+        return circular_service.get_or_generate_summary(meta, force_regenerate=True)
+    except Exception as exc:
+        logger.error("Failed to regenerate circular %s: %s", meta.hash, exc, exc_info=True)
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="An error occurred while analyzing the circular."
