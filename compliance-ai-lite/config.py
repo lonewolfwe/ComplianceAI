@@ -27,7 +27,7 @@ class Settings(BaseSettings):
 
     # ── Google Gemini ─────────────────────────────────────────────────────
     google_api_key: str = Field(..., description="Google Gemini API key. Required.")
-    gemini_model: str = Field(default="gemini-1.5-flash-latest", description="Gemini model identifier.")
+    gemini_model: str = Field(default="gemini-flash-latest", description="Gemini model identifier.")
 
     # ── Scraper ───────────────────────────────────────────────────────────
     rbi_circular_limit: int = Field(default=5, ge=1, le=20, description="Number of latest circulars to fetch.")
