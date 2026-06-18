@@ -18,6 +18,10 @@ RUN pip install --no-cache-dir -r requirements.txt
 # Copy the rest of the application
 COPY . .
 
+# Create a non-root user for security
+RUN useradd -m appuser && chown -R appuser /app
+USER appuser
+
 # Expose port (Render automatically assigns $PORT)
 EXPOSE 8000
 

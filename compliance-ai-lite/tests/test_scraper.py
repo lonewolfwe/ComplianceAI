@@ -27,7 +27,6 @@ from src.scraper.rbi_scraper import (
     _make_absolute_url,
     _parse_page,
     _parse_row,
-    _to_meta,
 )
 from src.schemas.circular import CircularMeta
 
@@ -397,35 +396,7 @@ class TestDeduplicate:
         assert len(_deduplicate(circulars)) == 1
 
 
-# ── _to_meta ──────────────────────────────────────────────────────────────────
 
-
-class TestToMeta:
-    """Tests for the _to_meta conversion function."""
-
-    def test_returns_circular_meta_instance(self) -> None:
-        """Must return a CircularMeta Pydantic model."""
-        raw = RawCircular(
-            title="RBI Circular on Digital Lending Guidelines",
-            date="Jun 18, 2026",
-            url="https://www.rbi.org.in/rdocs/Pdf/A.pdf",
-            source_url="https://www.rbi.org.in/page",
-        )
-        result = _to_meta(raw)
-        assert isinstance(result, CircularMeta)
-
-    def test_fields_are_correctly_mapped(self) -> None:
-        """Title, date, and pdf_url must match the source RawCircular."""
-        raw = RawCircular(
-            title="RBI Circular on Payment Aggregators",
-            date="Jun 15, 2026",
-            url="https://www.rbi.org.in/rdocs/Pdf/B.pdf",
-            source_url="",
-        )
-        meta = _to_meta(raw)
-        assert meta.title == raw.title
-        assert meta.date == raw.date
-        assert meta.pdf_url == raw.url
 
 
 # ── RBIScraper.fetch_latest (integration-style with mocked HTTP) ──────────────

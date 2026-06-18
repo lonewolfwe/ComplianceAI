@@ -10,6 +10,8 @@ All routes in this module:
 No business logic lives here.
 """
 
+import time
+
 from fastapi import APIRouter, Depends, HTTPException, Request, status
 from fastapi.responses import HTMLResponse
 from fastapi.templating import Jinja2Templates
@@ -22,6 +24,9 @@ logger = get_logger(__name__)
 
 router = APIRouter()
 templates = Jinja2Templates(directory="templates")
+
+# In-memory timestamp to prevent refresh spamming and API exhaustion
+_last_refresh_time: float = 0.0
 
 
 def get_pipeline(request: Request) -> CompliancePipeline:
@@ -46,7 +51,7 @@ def get_pipeline(request: Request) -> CompliancePipeline:
     summary="Homepage",
     description="Render the main page displaying the latest RBI circular summaries.",
 )
-async def index(
+def index(
     request: Request,
     pipeline: CompliancePipeline = Depends(get_pipeline),
 ) -> HTMLResponse:
@@ -84,7 +89,7 @@ async def index(
         status.HTTP_503_SERVICE_UNAVAILABLE: {"model": ErrorResponse},
     },
 )
-async def list_circulars(
+def list_circulars(
     pipeline: CompliancePipeline = Depends(get_pipeline),
 ) -> list[CircularSummary]:
     """
@@ -121,7 +126,7 @@ async def list_circulars(
         status.HTTP_503_SERVICE_UNAVAILABLE: {"model": ErrorResponse},
     },
 )
-async def refresh_circulars(
+def refresh_circulars(
     pipeline: CompliancePipeline = Depends(get_pipeline),
 ) -> list[CircularSummary]:
     """
@@ -140,6 +145,16 @@ async def refresh_circulars(
     Raises:
         HTTPException (503): If the refresh pipeline yields no results.
     """
+    global _last_refresh_time
+    now = time.time()
+    if now - _last_refresh_time < 60.0:
+        logger.warning("Rate limit hit on /api/refresh. Rejecting request.")
+        raise HTTPException(
+            status_code=status.HTTP_429_TOO_MANY_REQUESTS,
+            detail="Refresh rate limit exceeded. Please wait 60 seconds before refreshing again."
+        )
+    _last_refresh_time = now
+
     logger.info("POST /api/refresh — Manual cache invalidation requested.")
     circulars: list[CircularSummary] = pipeline.refresh()
     if not circulars:

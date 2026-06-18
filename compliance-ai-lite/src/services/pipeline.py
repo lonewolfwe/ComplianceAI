@@ -111,7 +111,7 @@ class CompliancePipeline:
             # 1. Fetch metadata list
             metas = self._scraper.fetch_latest()
         except Exception as exc:
-            logger.error("Pipeline failed to fetch circular metadata: %s", exc)
+            logger.error("Pipeline failed to fetch circular metadata: %s", exc, exc_info=True)
             return []
 
         if not metas:
@@ -157,7 +157,7 @@ class CompliancePipeline:
         except Exception as exc:
             # Absolute worst-case fallback if the orchestration itself throws an unhandled exception
             logger.error(
-                "Unhandled exception processing circular %r: %s", meta.title, exc
+                "Unhandled exception processing circular %r: %s", meta.title, exc, exc_info=True
             )
             # The summarizer knows how to build a clean error summary shape
             return self._summarizer._build_error_summary(

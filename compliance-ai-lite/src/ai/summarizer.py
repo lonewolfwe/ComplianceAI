@@ -149,6 +149,7 @@ class GeminiSummarizer:
                     "Unexpected error calling Gemini API on attempt %d: %s",
                     attempt,
                     exc,
+                    exc_info=True
                 )
                 # Fail immediately on generic exceptions (e.g., auth, networking)
                 # to avoid pointless retries when the API is down.
