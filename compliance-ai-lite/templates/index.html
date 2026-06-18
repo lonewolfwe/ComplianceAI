@@ -1,0 +1,296 @@
+<!DOCTYPE html>
+<html lang="en" class="scroll-smooth">
+
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+
+  <!-- SEO -->
+  <title>ComplianceAI Lite — Latest RBI Circulars</title>
+  <meta name="description"
+    content="AI-powered RBI regulatory monitoring for Indian fintech companies. Instantly view summaries of the latest RBI circulars — no manual reading required." />
+  <meta name="robots" content="index, follow" />
+
+  <!-- Tailwind CSS via CDN (swap for compiled output in production) -->
+  <script src="https://cdn.tailwindcss.com"></script>
+
+  <!-- Google Fonts — Inter -->
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap"
+    rel="stylesheet" />
+
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          fontFamily: { sans: ['Inter', 'sans-serif'] },
+          colors: {
+            brand: {
+              50: '#eef2ff',
+              100: '#e0e7ff',
+              500: '#6366f1',
+              600: '#4f46e5',
+              700: '#4338ca',
+            }
+          }
+        }
+      }
+    }
+  </script>
+
+  <link rel="stylesheet" href="/static/css/styles.css" />
+</head>
+
+<body class="min-h-screen bg-slate-950 text-slate-100 font-sans antialiased">
+
+  <!-- ── Navigation ─────────────────────────────────────────────────────── -->
+  <header class="sticky top-0 z-50 bg-slate-950/80 backdrop-blur border-b border-slate-800">
+    <nav class="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between"
+      aria-label="Primary navigation">
+
+      <!-- Logo -->
+      <a href="/" class="flex items-center gap-2 group" aria-label="ComplianceAI Lite home">
+        <span class="text-brand-500 text-2xl font-bold tracking-tight group-hover:text-brand-400 transition-colors">
+          ComplianceAI
+        </span>
+        <span
+          class="bg-brand-600 text-white text-xs font-semibold px-2 py-0.5 rounded-full tracking-wide uppercase">
+          Lite
+        </span>
+      </a>
+
+      <!-- Refresh button -->
+      <button id="refresh-btn"
+        onclick="handleRefresh()"
+        aria-label="Refresh latest circulars"
+        class="flex items-center gap-2 bg-brand-600 hover:bg-brand-700 active:scale-95 text-white text-sm font-medium px-4 py-2 rounded-lg transition-all duration-150 focus:outline-none focus:ring-2 focus:ring-brand-500 focus:ring-offset-2 focus:ring-offset-slate-950">
+        <svg id="refresh-icon" xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none"
+          viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" aria-hidden="true">
+          <path stroke-linecap="round" stroke-linejoin="round"
+            d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+        </svg>
+        <span id="refresh-label">Refresh</span>
+      </button>
+
+    </nav>
+  </header>
+
+  <!-- ── Main Content ────────────────────────────────────────────────────── -->
+  <main class="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-10">
+
+    <!-- Page heading -->
+    <section class="mb-10" aria-labelledby="page-heading">
+      <h1 id="page-heading" class="text-3xl sm:text-4xl font-extrabold text-white tracking-tight">
+        Latest RBI Circulars
+      </h1>
+      <p class="mt-2 text-slate-400 text-base max-w-xl">
+        AI-generated compliance briefs. Updated automatically. No manual reading required.
+      </p>
+      {% if total %}
+      <p class="mt-1 text-slate-500 text-sm">
+        Showing <span class="text-slate-300 font-semibold">{{ total }}</span> circular{{ 's' if total != 1 else '' }}.
+      </p>
+      {% endif %}
+    </section>
+
+    <!-- ── Circular Cards ──────────────────────────────────────────────── -->
+    <section aria-label="RBI circular summaries">
+
+      {% if circulars %}
+      <div class="grid gap-6 sm:grid-cols-1 lg:grid-cols-1" id="circulars-container">
+
+        {% for circular in circulars %}
+
+        <!-- Card -->
+        <article
+          class="group bg-slate-900 border border-slate-800 hover:border-brand-600 rounded-2xl p-6 transition-all duration-200 hover:shadow-lg hover:shadow-brand-600/10"
+          aria-label="RBI Circular: {{ circular.title }}">
+
+          <!-- Card header: title + severity badge -->
+          <header class="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3 mb-4">
+            <h2 class="text-lg font-semibold text-white leading-snug pr-4">
+              {{ circular.title }}
+            </h2>
+
+            {% if not circular.summary_error %}
+            <!-- Severity Badge -->
+            <span aria-label="Severity: {{ circular.severity }}"
+              class="flex-shrink-0 self-start sm:self-auto inline-flex items-center px-3 py-1 rounded-full text-xs font-bold tracking-wide
+              {% if circular.severity == 'Critical' %} bg-red-950 text-red-300 border border-red-800
+              {% elif circular.severity == 'High' %}    bg-orange-950 text-orange-300 border border-orange-800
+              {% elif circular.severity == 'Medium' %}  bg-amber-950 text-amber-300 border border-amber-800
+              {% else %}                                bg-emerald-950 text-emerald-300 border border-emerald-800
+              {% endif %}">
+              {{ circular.severity }}
+            </span>
+            {% endif %}
+          </header>
+
+          <!-- Date -->
+          <p class="text-xs text-slate-500 mb-4 flex items-center gap-1.5">
+            <svg xmlns="http://www.w3.org/2000/svg" class="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24"
+              stroke="currentColor" stroke-width="2" aria-hidden="true">
+              <path stroke-linecap="round" stroke-linejoin="round"
+                d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+            </svg>
+            Published: <time>{{ circular.date }}</time>
+          </p>
+
+          {% if circular.summary_error %}
+          <!-- Error state: partial card -->
+          <div class="flex items-start gap-3 bg-slate-800 border border-slate-700 rounded-xl p-4 mt-2"
+            role="alert">
+            <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 text-amber-400 flex-shrink-0 mt-0.5"
+              fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" aria-hidden="true">
+              <path stroke-linecap="round" stroke-linejoin="round"
+                d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+            </svg>
+            <div>
+              <p class="text-sm font-medium text-amber-300">AI summary unavailable</p>
+              <p class="text-xs text-slate-400 mt-1">{{ circular.error_message or 'An error occurred during summarization.' }}</p>
+            </div>
+          </div>
+
+          {% else %}
+
+          <!-- Summary -->
+          <div class="mb-4">
+            <h3 class="text-xs font-semibold text-slate-400 uppercase tracking-widest mb-1.5">Summary</h3>
+            <p class="text-sm text-slate-300 leading-relaxed">{{ circular.summary }}</p>
+          </div>
+
+          <!-- Affected Organizations -->
+          <div class="mb-4">
+            <h3 class="text-xs font-semibold text-slate-400 uppercase tracking-widest mb-1.5">Affected</h3>
+            <p class="text-sm text-slate-300">{{ circular.affected }}</p>
+          </div>
+
+          <!-- Action Items -->
+          {% if circular.action_items %}
+          <div class="mb-4">
+            <h3 class="text-xs font-semibold text-slate-400 uppercase tracking-widest mb-1.5">Action Items</h3>
+            <ul class="space-y-1.5" role="list">
+              {% for item in circular.action_items %}
+              <li class="flex items-start gap-2 text-sm text-slate-300">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 text-brand-500 flex-shrink-0 mt-0.5"
+                  fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5" aria-hidden="true">
+                  <path stroke-linecap="round" stroke-linejoin="round" d="M9 12l2 2 4-4" />
+                </svg>
+                {{ item }}
+              </li>
+              {% endfor %}
+            </ul>
+          </div>
+          {% endif %}
+
+          <!-- Deadline -->
+          {% if circular.deadline %}
+          <div class="mb-4">
+            <h3 class="text-xs font-semibold text-slate-400 uppercase tracking-widest mb-1.5">Compliance Deadline</h3>
+            <p class="text-sm font-medium text-amber-300">{{ circular.deadline }}</p>
+          </div>
+          {% endif %}
+
+          {% endif %} {# end summary_error check #}
+
+          <!-- Footer: Read PDF link -->
+          <footer class="mt-5 pt-4 border-t border-slate-800">
+            <a href="{{ circular.pdf_url }}"
+              target="_blank"
+              rel="noopener noreferrer"
+              aria-label="Read the original RBI PDF for {{ circular.title }}"
+              class="inline-flex items-center gap-2 text-sm font-medium text-brand-400 hover:text-brand-300 transition-colors group/link">
+              <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24"
+                stroke="currentColor" stroke-width="2" aria-hidden="true">
+                <path stroke-linecap="round" stroke-linejoin="round"
+                  d="M12 10v6m0 0l-3-3m3 3l3-3M3 17V7a2 2 0 012-2h6l2 2h6a2 2 0 012 2v8a2 2 0 01-2 2H5a2 2 0 01-2-2z" />
+              </svg>
+              Read Original PDF
+              <svg xmlns="http://www.w3.org/2000/svg"
+                class="h-3.5 w-3.5 opacity-60 group-hover/link:translate-x-0.5 transition-transform"
+                fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" aria-hidden="true">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
+              </svg>
+            </a>
+          </footer>
+
+        </article>
+        {% endfor %}
+      </div>
+
+      {% else %}
+
+      <!-- Empty state -->
+      <div class="flex flex-col items-center justify-center py-24 text-center" role="status">
+        <svg xmlns="http://www.w3.org/2000/svg" class="h-16 w-16 text-slate-700 mb-5" fill="none"
+          viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5" aria-hidden="true">
+          <path stroke-linecap="round" stroke-linejoin="round"
+            d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+        </svg>
+        <h2 class="text-xl font-semibold text-slate-400 mb-2">No circulars available</h2>
+        <p class="text-slate-500 text-sm max-w-sm">
+          The RBI website may be temporarily unreachable. Try refreshing in a moment.
+        </p>
+        <button onclick="handleRefresh()"
+          class="mt-6 bg-brand-600 hover:bg-brand-700 text-white text-sm font-medium px-5 py-2.5 rounded-lg transition-colors focus:outline-none focus:ring-2 focus:ring-brand-500 focus:ring-offset-2 focus:ring-offset-slate-950">
+          Try Again
+        </button>
+      </div>
+
+      {% endif %}
+
+    </section>
+  </main>
+
+  <!-- ── Footer ─────────────────────────────────────────────────────────── -->
+  <footer class="border-t border-slate-800 mt-16 py-8">
+    <div class="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 flex flex-col sm:flex-row items-center justify-between gap-4 text-slate-500 text-xs">
+      <p>
+        &copy; 2026 ComplianceAI Lite. Not a substitute for legal advice.
+      </p>
+      <p>
+        Data sourced from the
+        <a href="https://www.rbi.org.in" target="_blank" rel="noopener noreferrer"
+          class="text-slate-400 hover:text-white transition-colors underline underline-offset-2">
+          Reserve Bank of India
+        </a>.
+      </p>
+    </div>
+  </footer>
+
+  <!-- ── JavaScript: Refresh Handler ───────────────────────────────────── -->
+  <script>
+    /**
+     * Trigger a manual refresh of all RBI circulars.
+     * Calls POST /api/refresh, then reloads the page on success.
+     */
+    async function handleRefresh() {
+      const btn = document.getElementById('refresh-btn');
+      const icon = document.getElementById('refresh-icon');
+      const label = document.getElementById('refresh-label');
+
+      btn.disabled = true;
+      icon.classList.add('animate-spin');
+      label.textContent = 'Refreshing…';
+
+      try {
+        const response = await fetch('/api/refresh', { method: 'POST' });
+        if (response.ok) {
+          window.location.reload();
+        } else {
+          const data = await response.json().catch(() => ({}));
+          alert(data.detail || 'Refresh failed. Please try again.');
+        }
+      } catch (err) {
+        alert('Network error. Please check your connection and try again.');
+      } finally {
+        btn.disabled = false;
+        icon.classList.remove('animate-spin');
+        label.textContent = 'Refresh';
+      }
+    }
+  </script>
+
+</body>
+</html>

@@ -1,0 +1,3 @@
+"""
+ComplianceAI Lite — source package.
+"""

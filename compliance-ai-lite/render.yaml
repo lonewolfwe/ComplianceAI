@@ -1,0 +1,28 @@
+services:
+  - type: web
+    name: compliance-ai-lite
+    env: python
+    region: singapore
+    plan: starter
+    buildCommand: "pip install -r requirements.txt"
+    startCommand: "uvicorn app:app --host 0.0.0.0 --port $PORT"
+    healthCheckPath: /health
+    envVars:
+      - key: APP_ENV
+        value: production
+      - key: LOG_LEVEL
+        value: INFO
+      - key: GOOGLE_API_KEY
+        sync: false       # Set this manually in the Render dashboard.
+      - key: GEMINI_MODEL
+        value: gemini-1.5-flash
+      - key: RBI_CIRCULAR_LIMIT
+        value: "5"
+      - key: CACHE_TTL_MINUTES
+        value: "30"
+      - key: PDF_MAX_TOKENS
+        value: "8000"
+      - key: SCRAPER_TIMEOUT_SECONDS
+        value: "10"
+      - key: PDF_DOWNLOAD_TIMEOUT_SECONDS
+        value: "15"

@@ -1,0 +1,45 @@
+/*
+ * ComplianceAI Lite — Custom CSS
+ *
+ * Tailwind CSS handles the majority of styling via utility classes in index.html.
+ * This file contains only styles that cannot be expressed with utilities:
+ *   - Custom animations
+ *   - Global resets / base overrides
+ *   - Scrollbar theming
+ */
+
+/* ── Scrollbar styling (Webkit) ──────────────────────────────────────────── */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: #0f172a; /* slate-950 */
+}
+
+::-webkit-scrollbar-thumb {
+  background: #334155; /* slate-700 */
+  border-radius: 3px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #4f46e5; /* brand-600 */
+}
+
+/* ── Smooth focus ring transition ────────────────────────────────────────── */
+*:focus-visible {
+  outline: 2px solid #6366f1; /* brand-500 */
+  outline-offset: 2px;
+  border-radius: 4px;
+}
+
+/* ── Spin animation for refresh icon ─────────────────────────────────────── */
+@keyframes spin {
+  from { transform: rotate(0deg); }
+  to   { transform: rotate(360deg); }
+}
+
+.animate-spin {
+  animation: spin 1s linear infinite;
+}
