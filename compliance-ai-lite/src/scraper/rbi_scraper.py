@@ -159,7 +159,17 @@ class RBIScraper:
             len(limited_circulars),
         )
 
-        return [_to_meta(raw) for raw in limited_circulars]
+        final_metas = []
+        for raw in limited_circulars:
+            # The URL we have is the detail page. Fetch it to find the actual PDF.
+            pdf_url = self._fetch_pdf_link(raw.url)
+            final_metas.append(CircularMeta(
+                title=raw.title,
+                date=raw.date,
+                pdf_url=pdf_url or raw.url,  # Fallback to detail page if no PDF found
+            ))
+
+        return final_metas
 
     # ── Private HTTP layer ────────────────────────────────────────────────
 
@@ -220,6 +230,28 @@ class RBIScraper:
                     )
 
         raise last_exception  # type: ignore[misc]
+
+    def _fetch_pdf_link(self, detail_url: str) -> str | None:
+        """
+        Fetch the detail page and extract the first direct .pdf link.
+        """
+        # RBI detail pages are typically under NotificationUser.aspx
+        # The index page links to BS_CircularIndexDisplay.aspx which sometimes fails or redirects.
+        target_url = detail_url.replace("BS_CircularIndexDisplay.aspx", "NotificationUser.aspx")
+        
+        try:
+            html = self._fetch_html(target_url)
+            soup = BeautifulSoup(html, "lxml")
+            for link in soup.find_all("a", href=True):
+                href = link["href"]
+                if ".pdf" in href.lower():
+                    # Return absolute URL of the PDF
+                    return _make_absolute_url(href, base_url=self._base_url, source_url=target_url)
+            logger.debug("No PDF links found on detail page: %s", target_url)
+        except Exception as exc:
+            logger.warning("Failed to fetch detail page %s: %s", target_url, exc)
+            
+        return None
 
 
 # ── Module-level pure functions (unit-testable without class instantiation) ───
@@ -353,7 +385,7 @@ def _parse_row(row: Tag, source_url: str, base_url: str) -> RawCircular | None:
         logger.debug("Skipping anchor with non-navigable href %r.", href)
         return None
 
-    absolute_url = _make_absolute_url(href, base_url=base_url)
+    absolute_url = _make_absolute_url(href, base_url=base_url, source_url=source_url)
     date = _extract_date_from_cells(cells)
 
     logger.debug("Parsed circular: title=%r date=%r url=%r", title, date, absolute_url)
@@ -431,30 +463,27 @@ def _looks_like_date(text: str) -> bool:
     return has_month_name or has_date_separator
 
 
-def _make_absolute_url(href: str, base_url: str) -> str:
+def _make_absolute_url(href: str, base_url: str, source_url: str = "") -> str:
     """
     Resolve a potentially relative href into an absolute URL.
 
     If the href is already absolute (starts with http/https), it is returned
-    unchanged. Otherwise, it is joined against the RBI base URL.
+    unchanged. Otherwise, it is joined against the source URL or base URL.
 
     Args:
-        href:     The raw href attribute value from an anchor tag.
-        base_url: The base URL to resolve relative paths against.
+        href:       The raw href attribute value from an anchor tag.
+        base_url:   The base URL to fallback to.
+        source_url: The page URL where the href was found.
 
     Returns:
         An absolute URL string.
-
-    Example:
-        >>> _make_absolute_url("/rdocs/Pdf/A.pdf", "https://www.rbi.org.in")
-        'https://www.rbi.org.in/rdocs/Pdf/A.pdf'
-        >>> _make_absolute_url("https://example.com/doc.pdf", "https://www.rbi.org.in")
-        'https://example.com/doc.pdf'
     """
     parsed = urlparse(href)
     if parsed.scheme in ("http", "https"):
         return href
-    return urljoin(base_url + "/", href.lstrip("/"))
+        
+    base = source_url if source_url else base_url + "/"
+    return urljoin(base, href.lstrip("/"))
 
 
 def _deduplicate(circulars: list[RawCircular]) -> list[RawCircular]:
@@ -493,21 +522,4 @@ def _deduplicate(circulars: list[RawCircular]) -> list[RawCircular]:
     return unique
 
 
-def _to_meta(raw: RawCircular) -> CircularMeta:
-    """
-    Convert an internal RawCircular dataclass to the public CircularMeta Pydantic model.
 
-    This function acts as the boundary between the scraper's internal
-    representation and the rest of the application pipeline.
-
-    Args:
-        raw: A validated RawCircular instance from the parser.
-
-    Returns:
-        A CircularMeta Pydantic model with validated fields.
-    """
-    return CircularMeta(
-        title=raw.title,
-        date=raw.date,
-        pdf_url=raw.url,
-    )
