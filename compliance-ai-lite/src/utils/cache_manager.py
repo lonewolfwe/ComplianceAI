@@ -35,3 +35,28 @@ class CacheManager(Generic[T]):
         """Clear the cache."""
         self._cache = None
         self._timestamp = 0.0
+
+class RedisCache:
+    """Simple Redis-backed cache for JSON-serializable objects."""
+    def __init__(self, redis_client, prefix: str = "cache:", ttl_seconds: int = 3600) -> None:
+        self.redis = redis_client
+        self.prefix = prefix
+        self.ttl = ttl_seconds
+
+    def _key(self, key: str) -> str:
+        return f"{self.prefix}{key}"
+
+    def get(self, key: str):
+        raw = self.redis.get(self._key(key))
+        if raw is None:
+            return None
+        try:
+            return json.loads(raw)
+        except Exception:
+            return None
+
+    def set(self, key: str, value) -> None:
+        self.redis.setex(self._key(key), self.ttl, json.dumps(value))
+
+    def invalidate(self, key: str) -> None:
+        self.redis.delete(self._key(key))

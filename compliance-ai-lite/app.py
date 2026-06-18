@@ -24,7 +24,7 @@ from src.utils.cache_manager import CacheManager
 from src.utils.logger import configure_logging, get_logger
 
 # Initialize Limiter (10 requests per minute per IP)
-limiter = Limiter(key_func=get_remote_address)
+limiter = Limiter(key_func=get_remote_address, default_limits=["30/min"])  # increased from 10/min
 
 # ── Bootstrap logging before anything else ────────────────────────────────────
 settings: Settings = get_settings()
