@@ -26,7 +26,7 @@ from src.parsers.pdf_parser import PDFParser
 from src.routes.circulars import router as circulars_router
 from src.scraper.rbi_scraper import RBIScraper
 from src.schemas.circular import CircularSummary
-from src.services.circular_service import CircularService
+from src.services.pipeline import CompliancePipeline
 from src.utils.cache import TTLCache
 from src.utils.logger import configure_logging, get_logger
 
@@ -70,7 +70,7 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     pdf_parser = PDFParser(settings=settings, downloader=downloader)
     summarizer = GeminiSummarizer(settings=settings)
 
-    circular_service = CircularService(
+    pipeline = CompliancePipeline(
         settings=settings,
         scraper=scraper,
         downloader=downloader,
@@ -80,7 +80,7 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     )
 
     # Attach to app.state so routes can access via request.app.state.
-    app.state.circular_service = circular_service
+    app.state.pipeline = pipeline
 
     logger.info("%s is ready to serve requests.", settings.app_name)
 
