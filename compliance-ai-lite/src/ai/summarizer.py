@@ -11,6 +11,7 @@ Does not scrape websites, download PDFs, or orchestrate the pipeline.
 """
 
 import json
+import time
 from typing import Literal
 
 try:
@@ -162,8 +163,19 @@ class GeminiSummarizer:
     def _call_gemini(self, prompt: str) -> str:
         """
         Send a prompt to the Gemini API and return the raw text response.
+        Automatically handles 429 Rate Limit Exceeded by sleeping for 32s.
         """
-        response = self._model.generate_content(prompt)
+        try:
+            response = self._model.generate_content(prompt)
+        except Exception as exc:
+            err_str = str(exc)
+            if "429" in err_str or "Quota exceeded" in err_str:
+                logger.warning("Gemini API rate limit exceeded (429). Sleeping for 32 seconds before retrying...")
+                time.sleep(32)
+                response = self._model.generate_content(prompt)
+            else:
+                raise exc
+
         if not response.text:
             raise ValueError("Gemini returned an empty response.")
         return response.text
