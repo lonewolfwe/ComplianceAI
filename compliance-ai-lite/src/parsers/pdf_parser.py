@@ -18,10 +18,11 @@ Public interface
     text: str = parser.extract_from_path(path)
 """
 
-import io
+import re
 from pathlib import Path
 
 import pdfplumber
+import pdfplumber.pdfminer.pdfparser
 
 from config import Settings
 from src.parsers.pdf_downloader import PDFDownloadError, PDFDownloader
@@ -71,9 +72,17 @@ class PDFParser:
             Extracted plain text, truncated to ``settings.pdf_max_tokens``
             characters. Empty string on download or extraction failure.
         """
-        raise NotImplementedError(
-            "PDFParser.download_and_extract() will be implemented in Milestone 3."
-        )
+        logger.debug("Downloading and extracting PDF: %s", pdf_url)
+        try:
+            result = self._downloader.download(pdf_url)
+        except PDFDownloadError as exc:
+            logger.error("Failed to download PDF from %s: %s", pdf_url, exc)
+            return ""
+
+        try:
+            return self.extract_from_path(result.path)
+        finally:
+            self._downloader.delete(result)
 
     def extract_from_path(self, path: Path) -> str:
         """
@@ -94,9 +103,27 @@ class PDFParser:
             This method does not raise. All pdfplumber exceptions are caught,
             logged, and an empty string is returned.
         """
-        raise NotImplementedError(
-            "PDFParser.extract_from_path() will be implemented in Milestone 3."
-        )
+        logger.debug("Extracting text from local PDF: %s", path)
+        try:
+            with pdfplumber.open(path) as pdf:
+                raw_text = self._extract_pages(pdf)
+        except pdfplumber.pdfminer.pdfparser.PDFSyntaxError as exc:
+            logger.error("PDF syntax error while parsing %s: %s", path, exc)
+            return ""
+        except Exception as exc:
+            logger.error("Unexpected error parsing PDF %s: %s", path, exc)
+            return ""
+
+        if not raw_text:
+            logger.warning("No readable text could be extracted from %s.", path)
+            return ""
+
+        cleaned_text = self._normalise_whitespace(raw_text)
+        if not cleaned_text:
+            logger.warning("PDF %s contained only whitespace.", path)
+            return ""
+
+        return self._truncate(cleaned_text)
 
     # ── Private helpers ───────────────────────────────────────────────────────
 
@@ -113,9 +140,12 @@ class PDFParser:
         Returns:
             Raw concatenated text from all readable pages.
         """
-        raise NotImplementedError(
-            "PDFParser._extract_pages() will be implemented in Milestone 3."
-        )
+        pages_text: list[str] = []
+        for page in pdf.pages:
+            text = page.extract_text()
+            if text:
+                pages_text.append(text)
+        return " ".join(pages_text)
 
     def _normalise_whitespace(self, text: str) -> str:
         """
@@ -127,9 +157,7 @@ class PDFParser:
         Returns:
             Cleaned text with normalised whitespace.
         """
-        raise NotImplementedError(
-            "PDFParser._normalise_whitespace() will be implemented in Milestone 3."
-        )
+        return re.sub(r"\s+", " ", text).strip()
 
     def _truncate(self, text: str) -> str:
         """
