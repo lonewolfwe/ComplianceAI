@@ -17,9 +17,6 @@ logger = get_logger(__name__)
 router = APIRouter()
 templates = Jinja2Templates(directory="templates")
 
-# In-memory timestamp to prevent refresh spamming and API exhaustion
-_last_refresh_time: float = 0.0
-
 
 def get_circular_service(request: Request) -> CircularService:
     """Dependency injector for CircularService."""
@@ -39,8 +36,9 @@ def index(
     logger.info("GET / — Rendering homepage.")
     circulars: list[CircularMeta] = circular_service.get_latest_metadata()
     return templates.TemplateResponse(
-        "index.html",
-        {"request": request, "circulars": circulars},
+        request=request,
+        name="index.html",
+        context={"circulars": circulars},
     )
 
 
@@ -68,23 +66,24 @@ def list_circulars(
     return circulars
 
 
-@router.get("/circular/{hash}", response_class=HTMLResponse)
+@router.get("/circular/{circular_hash}", response_class=HTMLResponse)
 def circular_detail(
-    hash: str,
+    circular_hash: str,
     request: Request,
     circular_service: CircularService = Depends(get_circular_service),
 ) -> HTMLResponse:
     """Serves the new Premium SaaS Copilot detail page."""
     # Try to find the circular meta in the memory cache
     metas = circular_service.get_latest_metadata()
-    meta = next((m for m in metas if m.hash == hash), None)
+    meta = next((m for m in metas if m.hash == circular_hash), None)
     
     if not meta:
         raise HTTPException(status_code=404, detail="Circular not found in recent index.")
 
     return templates.TemplateResponse(
-        "detail.html",
-        {"request": request, "meta": meta},
+        request=request,
+        name="detail.html",
+        context={"meta": meta},
     )
 
 @router.post(
@@ -107,7 +106,7 @@ def summarize_circular(
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="An error occurred while analyzing the circular."
-        )
+        ) from exc
 
 @router.post(
     "/api/regenerate",
@@ -126,7 +125,7 @@ def regenerate_circular(
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="An error occurred while analyzing the circular."
-        )
+        ) from exc
 
 
 @router.post(
@@ -138,18 +137,19 @@ def regenerate_circular(
     },
 )
 def refresh_circulars(
+    request: Request,
     circular_service: CircularService = Depends(get_circular_service),
 ) -> list[CircularMeta]:
     """Force a manual refresh of the circular metadata cache."""
-    global _last_refresh_time
     now = time.time()
-    if now - _last_refresh_time < 60.0:
+    last_refresh_time = getattr(request.app.state, "last_refresh_time", 0.0)
+    if now - last_refresh_time < 60.0:
         logger.warning("Rate limit hit on /api/refresh. Rejecting request.")
         raise HTTPException(
             status_code=status.HTTP_429_TOO_MANY_REQUESTS,
             detail="Refresh rate limit exceeded. Please wait 60 seconds before refreshing again."
         )
-    _last_refresh_time = now
+    request.app.state.last_refresh_time = now
 
     logger.info("POST /api/refresh — Manual cache invalidation requested.")
     circulars: list[CircularMeta] = circular_service.get_latest_metadata(force_refresh=True)

@@ -109,7 +109,6 @@ class PDFParser:
             logged, and an empty string is returned.
         """
         logger.debug("Extracting text from local PDF: %s", path)
-        
         if not PYPDF_AVAILABLE:
             logger.error("pypdf is not installed. PDF extraction skipped.")
             return ""
@@ -120,7 +119,7 @@ class PDFParser:
         except PdfReadError as exc:
             logger.error("PDF syntax error while parsing %s: %s", path, exc)
             return ""
-        except Exception as exc:
+        except Exception as exc:  # pylint: disable=broad-exception-caught
             logger.error("Unexpected error parsing PDF %s: %s", path, exc)
             return ""
 
@@ -152,7 +151,6 @@ class PDFParser:
         """
         if not PYPDF_AVAILABLE:
             return ""
-            
         pages_text: list[str] = []
         for page in reader.pages:
             text = page.extract_text()

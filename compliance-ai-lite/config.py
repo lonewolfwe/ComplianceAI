@@ -92,4 +92,4 @@ def get_settings() -> Settings:
     Returns:
         A fully validated Settings instance.
     """
-    return Settings()
+    return Settings()  # type: ignore[call-arg]

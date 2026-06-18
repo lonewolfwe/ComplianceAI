@@ -8,7 +8,6 @@ from typing import List
 from config import Settings
 from src.schemas.circular import CircularMeta, CircularSummary
 from src.scraper.rbi_scraper import RBIScraper
-from src.parsers.pdf_downloader import PDFDownloader
 from src.parsers.pdf_parser import PDFParser
 from src.services.ai_service import AIService
 from src.repositories.summary_repository import SummaryRepository
@@ -18,6 +17,9 @@ from src.utils.logger import get_logger
 logger = get_logger(__name__)
 
 class CircularService:
+    """Orchestrates metadata fetching, PDF extraction, and AI summarization pipelines."""
+
+    # pylint: disable=too-many-arguments,too-many-positional-arguments
     def __init__(
         self,
         settings: Settings,
@@ -52,11 +54,13 @@ class CircularService:
             if metas:
                 self._meta_cache.set(metas)
             return metas
-        except Exception as exc:
+        except Exception as exc:  # pylint: disable=broad-exception-caught
             logger.error("Scraper failed: %s", exc, exc_info=True)
             return []
 
-    def get_or_generate_summary(self, meta: CircularMeta, force_regenerate: bool = False) -> CircularSummary:
+    def get_or_generate_summary(
+        self, meta: CircularMeta, force_regenerate: bool = False
+    ) -> CircularSummary:
         """
         The core Lazy AI pipeline.
         Checks disk cache first. If cache miss, downloads PDF, extracts text, calls Gemini, and saves.

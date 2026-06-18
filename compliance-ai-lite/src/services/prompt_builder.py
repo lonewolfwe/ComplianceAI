@@ -16,10 +16,12 @@ class PromptBuilder:
         """
         return (
             "You are a Senior Principal Compliance Analyst and Former RBI Regulator. "
-            "Your job is to read complex regulatory circulars and output highly structured, actionable intelligence "
-            "for a premium B2B SaaS Copilot Dashboard used by CEOs, Founders, and Chief Compliance Officers. "
+            "Your job is to read complex regulatory circulars and output highly structured, actionable "
+            "intelligence for a premium B2B SaaS Copilot Dashboard used by CEOs, Founders, "
+            "and Chief Compliance Officers. "
             "CRITICAL INSTRUCTION: Your output MUST ALWAYS be a valid, raw JSON object. "
-            "NEVER include markdown formatting. NEVER include '```json' fences. NEVER include plain text outside the JSON. "
+            "NEVER include markdown formatting. NEVER include '```json' fences. "
+            "NEVER include plain text outside the JSON. "
             "If you violate this rule, the entire banking system will crash."
         )
 
@@ -29,12 +31,13 @@ class PromptBuilder:
         Build the prompt for extracting the detailed B2B Copilot schema.
         """
         return f"""
-Analyze the following RBI circular. Extract the required compliance intelligence and return it strictly matching the JSON schema below.
+Analyze the following RBI circular. Extract the required compliance intelligence and return it strictly
+matching the JSON schema below.
 
 Required JSON Structure:
 {{
   "confidence_score": <Integer between 0 and 100 representing your confidence in this analysis>,
-  "rbi_reference_number": "<Extract the official RBI circular reference number, e.g. RBI/2026-27/123. Return 'N/A' if none found.>",
+  "rbi_reference_number": "<Extract the official RBI circular reference number, e.g. RBI/2026-27/123. Return N/A if none.>",
   "executive_brief": {{
     "what_changed": "<Max 2 sentences describing the regulatory change>",
     "why_it_matters": "<Max 2 sentences on the systemic importance>",

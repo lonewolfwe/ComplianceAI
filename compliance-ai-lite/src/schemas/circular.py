@@ -2,6 +2,7 @@
 Data schemas for RBI Circulars (Copilot Edition).
 """
 
+import hashlib
 from typing import Any, Dict, List
 from pydantic import BaseModel, Field
 
@@ -12,22 +13,24 @@ class CircularMeta(BaseModel):
     pdf_url: str
     hash: str = Field(default="")
 
-    def model_post_init(self, __context: Any) -> None:
+    def model_post_init(self, context: Any) -> None:
         if not self.hash:
-            import hashlib
             raw = f"{self.pdf_url}_{self.date}".encode("utf-8")
             self.hash = hashlib.sha256(raw).hexdigest()[:16]
 
 class ExecutiveBrief(BaseModel):
+    """Summarizes the key points and impact of the circular."""
     what_changed: str
     why_it_matters: str
     business_impact: str
 
 class ApplicabilityDetail(BaseModel):
+    """Details whether a circular applies to a specific company type."""
     status: str  # YES, PARTIALLY, NO
     reason: str
 
 class ImpactScores(BaseModel):
+    """Granular scores representing various risks and complexities."""
     overall: float
     business_risk: int
     legal_risk: int
@@ -36,29 +39,34 @@ class ImpactScores(BaseModel):
     financial_exposure: int
 
 class DepartmentImpact(BaseModel):
+    """Impact analysis specific to a single organizational department."""
     department: str
     impact_level: str
     required_actions: List[str]
     estimated_time: str
 
 class ChecklistItem(BaseModel):
+    """An actionable compliance task."""
     task: str
     priority: str
     effort: str
     owner: str
 
 class RoadmapMilestone(BaseModel):
+    """A specific milestone in the implementation roadmap."""
     task: str
     owner: str
     risk: str
 
 class AIRoadmap(BaseModel):
+    """Timeline of required compliance actions."""
     today: List[RoadmapMilestone]
     day_3: List[RoadmapMilestone]
     day_7: List[RoadmapMilestone]
     day_30: List[RoadmapMilestone]
 
 class BoardBrief(BaseModel):
+    """High-level summary intended for the Board of Directors."""
     business_risk: str
     financial_impact: str
     urgency: str

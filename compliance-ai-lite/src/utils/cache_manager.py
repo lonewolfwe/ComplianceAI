@@ -1,3 +1,7 @@
+"""
+In-memory caching utilities.
+"""
+
 import time
 from typing import Generic, TypeVar
 
@@ -19,8 +23,7 @@ class CacheManager(Generic[T]):
         if self._cache is not None:
             if (time.time() - self._timestamp) < self._ttl:
                 return self._cache
-            else:
-                self.invalidate()
+            self.invalidate()
         return None
 
     def set(self, item: T) -> None:

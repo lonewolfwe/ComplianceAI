@@ -29,7 +29,7 @@ def configure_logging(level: str = "INFO") -> None:
     Args:
         level: A valid Python logging level string (e.g., "INFO", "DEBUG").
     """
-    global _LOGGING_CONFIGURED  # noqa: PLW0603
+    global _LOGGING_CONFIGURED  # pylint: disable=global-statement
     if _LOGGING_CONFIGURED:
         return
 

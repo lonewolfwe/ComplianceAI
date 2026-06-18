@@ -243,12 +243,12 @@ class RBIScraper:
             html = self._fetch_html(target_url)
             soup = BeautifulSoup(html, "lxml")
             for link in soup.find_all("a", href=True):
-                href = link["href"]
+                href = str(link["href"])
                 if ".pdf" in href.lower():
                     # Return absolute URL of the PDF
                     return _make_absolute_url(href, base_url=self._base_url, source_url=target_url)
             logger.debug("No PDF links found on detail page: %s", target_url)
-        except Exception as exc:
+        except requests.RequestException as exc:
             logger.warning("Failed to fetch detail page %s: %s", target_url, exc)
             
         return None
@@ -372,7 +372,7 @@ def _parse_row(row: Tag, source_url: str, base_url: str) -> RawCircular | None:
     if anchor is None:
         return None
 
-    href: str = anchor["href"].strip()  # type: ignore[index]
+    href = str(anchor["href"]).strip()
     
     # The RBI website structure changed: the link text is now the circular number, 
     # and the actual title is in the 4th column (index 3).
@@ -520,6 +520,3 @@ def _deduplicate(circulars: list[RawCircular]) -> list[RawCircular]:
         logger.info("Removed %d duplicate circular(s).", duplicates_removed)
 
     return unique
-
-
-

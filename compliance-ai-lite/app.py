@@ -20,7 +20,6 @@ from fastapi import FastAPI
 from fastapi.staticfiles import StaticFiles
 
 from config import get_settings, Settings
-from src.ai.summarizer import GeminiSummarizer
 from src.parsers.pdf_downloader import PDFDownloader
 from src.parsers.pdf_parser import PDFParser
 from src.routes.circulars import router as circulars_router
@@ -41,7 +40,8 @@ logger = get_logger(__name__)
 # ── Application Lifespan ──────────────────────────────────────────────────────
 
 @asynccontextmanager
-async def lifespan(app: FastAPI) -> AsyncIterator[None]:
+async def lifespan(fastapi_app: FastAPI) -> AsyncIterator[None]:
+    """Manages the startup and shutdown lifecycle of the application."""
     logger.info(
         "Starting %s [env=%s, model=%s, limit=%d circulars].",
         settings.app_name,

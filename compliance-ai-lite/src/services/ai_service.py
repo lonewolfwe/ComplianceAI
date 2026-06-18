@@ -6,10 +6,9 @@ Handles secure API communication, strict JSON validation, and deeply nested obje
 import json
 import time
 from datetime import datetime, timezone
-from typing import Optional, Dict, Any
 
 try:
-    import google.generativeai as genai
+    import google.generativeai as genai  # type: ignore[import-not-found]
     GENAI_AVAILABLE = True
 except ImportError:
     GENAI_AVAILABLE = False
@@ -76,11 +75,13 @@ class AIService:
                 logger.warning("Failures: JSON parsing failed on attempt %d: %s", attempt, exc)
             except ValidationError as exc:
                 logger.warning("Failures: Schema validation failed on attempt %d: %s", attempt, exc)
-            except Exception as exc:
+            except Exception as exc:  # pylint: disable=broad-exception-caught
                 err_str = str(exc)
                 if "429" in err_str or "Quota exceeded" in err_str:
                     logger.warning("Failures: Gemini API quota exceeded.")
-                    return self._build_error(meta, "AI analysis is temporarily unavailable. Please retry later.")
+                    return self._build_error(
+                        meta, "AI analysis is temporarily unavailable. Please retry later."
+                    )
                 
                 logger.error("Failures: Unexpected AI error on attempt %d: %s", attempt, exc, exc_info=True)
                 return self._build_error(meta, f"API communication failed: {exc}")
@@ -174,10 +175,30 @@ class AIService:
             ],
             
             roadmap=AIRoadmap(
-                today=[RoadmapMilestone(task=m.get("task",""), owner=m.get("owner",""), risk=m.get("risk","")) for m in safe_list("today", roadmap_data.get("today", [])) if isinstance(m, dict)],
-                day_3=[RoadmapMilestone(task=m.get("task",""), owner=m.get("owner",""), risk=m.get("risk","")) for m in safe_list("day_3", roadmap_data.get("day_3", [])) if isinstance(m, dict)],
-                day_7=[RoadmapMilestone(task=m.get("task",""), owner=m.get("owner",""), risk=m.get("risk","")) for m in safe_list("day_7", roadmap_data.get("day_7", [])) if isinstance(m, dict)],
-                day_30=[RoadmapMilestone(task=m.get("task",""), owner=m.get("owner",""), risk=m.get("risk","")) for m in safe_list("day_30", roadmap_data.get("day_30", [])) if isinstance(m, dict)]
+                today=[
+                    RoadmapMilestone(
+                        task=m.get("task", ""), owner=m.get("owner", ""), risk=m.get("risk", "")
+                    )
+                    for m in safe_list("today", roadmap_data.get("today", [])) if isinstance(m, dict)
+                ],
+                day_3=[
+                    RoadmapMilestone(
+                        task=m.get("task", ""), owner=m.get("owner", ""), risk=m.get("risk", "")
+                    )
+                    for m in safe_list("day_3", roadmap_data.get("day_3", [])) if isinstance(m, dict)
+                ],
+                day_7=[
+                    RoadmapMilestone(
+                        task=m.get("task", ""), owner=m.get("owner", ""), risk=m.get("risk", "")
+                    )
+                    for m in safe_list("day_7", roadmap_data.get("day_7", [])) if isinstance(m, dict)
+                ],
+                day_30=[
+                    RoadmapMilestone(
+                        task=m.get("task", ""), owner=m.get("owner", ""), risk=m.get("risk", "")
+                    )
+                    for m in safe_list("day_30", roadmap_data.get("day_30", [])) if isinstance(m, dict)
+                ]
             ),
             
             key_questions=safe_list("key_questions", []),
@@ -202,14 +223,22 @@ class AIService:
             confidence_score=0,
             rbi_reference_number="N/A",
             
-            executive_brief=ExecutiveBrief(what_changed="Error", why_it_matters="Error", business_impact=reason),
+            executive_brief=ExecutiveBrief(
+                what_changed="Error", why_it_matters="Error", business_impact=reason
+            ),
             applicability={},
-            impact_scores=ImpactScores(overall=0.0, business_risk=0, legal_risk=0, operational_complexity=0, implementation_effort=0, financial_exposure=0),
+            impact_scores=ImpactScores(
+                overall=0.0, business_risk=0, legal_risk=0,
+                operational_complexity=0, implementation_effort=0, financial_exposure=0
+            ),
             department_impacts=[],
             checklist=[],
             roadmap=AIRoadmap(today=[], day_3=[], day_7=[], day_30=[]),
             key_questions=[],
-            board_brief=BoardBrief(business_risk="Error", financial_impact="Error", urgency="Error", recommendation=reason),
+            board_brief=BoardBrief(
+                business_risk="Error", financial_impact="Error",
+                urgency="Error", recommendation=reason
+            ),
             
             summary_error=True,
             error_message=reason
