@@ -492,18 +492,24 @@ class TestRBIScraperFetchLatest:
     ) -> None:
         """Must succeed on the second attempt if the first fails."""
         ok_response = self._make_ok_response(_SAMPLE_HTML)
-        mock_get.side_effect = [requests.ConnectionError("Transient error"), ok_response]
+        mock_get.side_effect = [requests.ConnectionError("Transient error")] + [ok_response] * 20
         scraper = RBIScraper(settings=self._make_settings())
         result = scraper.fetch_latest()
         assert len(result) > 0
-        assert mock_get.call_count == 2
+        assert mock_get.call_count == 7  # 1 fail + 1 success (index) + 5 success (detail pages)
 
     @patch("src.scraper.rbi_scraper.requests.get")
     def test_deduplicates_duplicate_entries(self, mock_get: MagicMock) -> None:
         """Must not return duplicate entries when the page contains repeated URLs."""
         duplicate_rows = _SAMPLE_ROWS[:2] + _SAMPLE_ROWS[:2]  # 4 rows, 2 unique
         html_with_dupes = _make_rbi_html(duplicate_rows)
-        mock_get.return_value = self._make_ok_response(html_with_dupes)
+        
+        def mock_get_effect(url, **kwargs):
+            if "BS_Circular" in url:
+                return self._make_ok_response(html_with_dupes)
+            return self._make_ok_response(f"<a href='{url}.pdf'>PDF</a>")
+            
+        mock_get.side_effect = mock_get_effect
         scraper = RBIScraper(settings=self._make_settings(limit=10))
         result = scraper.fetch_latest()
         urls = [c.pdf_url for c in result]

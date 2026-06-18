@@ -286,10 +286,10 @@
 
   <script>
     const metaPayload = {
-        title: "{{ meta.title | escapejs }}",
-        date: "{{ meta.date | escapejs }}",
-        pdf_url: "{{ meta.pdf_url | escapejs }}",
-        hash: "{{ meta.hash | escapejs }}"
+        title: {{ meta.title | tojson }},
+        date: {{ meta.date | tojson }},
+        pdf_url: {{ meta.pdf_url | tojson }},
+        hash: {{ meta.hash | tojson }}
     };
 
     let activeJobId = null;
